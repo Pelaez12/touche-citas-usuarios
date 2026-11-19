@@ -1,4 +1,4 @@
-const CACHE = 'touche-citas-v3';
+const CACHE = 'touche-citas-v4';
 const SHELL = [
   '/brand/fonts.css',
   '/brand/montserrat-0.woff2',

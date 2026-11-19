@@ -114,31 +114,20 @@ export async function handlePublicApi(request, db, readBody, { now = new Date(),
       count: services.filter(s => s.category === code).length
     }));
 
-    const catByStaff = new Map();
-    for (const c of catRes.results) {
-      const list = catByStaff.get(c.staffId) || [];
-      list.push(c.category);
-      catByStaff.set(c.staffId, list);
-    }
-
     const staff = staffRes.results.map(m => ({
       id: m.id,
       displayName: m.displayName,
       shortName: m.shortName || m.displayName.split(/\s+/)[0],
-      role: m.role,
-      seniorityTier: m.seniorityTier,
-      restWeekday: m.restWeekday,
-      specialtySummary: sanitizePublicSpecialty(m.specialtySummary, m.role),
-      categories: catByStaff.get(m.id) || []
+      specialtySummary: sanitizePublicSpecialty(m.specialtySummary, m.role)
     }));
 
-    // Map each service to its eligible public staff IDs so Paso 2 filters cleanly
+    // Map each service to its eligible public staff IDs (no internal levels or rest days exposed)
     const serviceEligibleStaff = {};
     for (const svc of services) {
       const eligible = [];
       for (const m of staff) {
         const cap = resolveCapability(m.id, svc, catRes.results, ovrRes.results);
-        if (cap) eligible.push({ staffId: m.id, level: cap });
+        if (cap) eligible.push(m.id);
       }
       serviceEligibleStaff[svc.id] = eligible;
     }

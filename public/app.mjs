@@ -379,7 +379,7 @@ function reopenServicePicker() {
 /* ==================== PASO 2: ESPECIALISTA ==================== */
 function getEligibleStaffFor(serviceId) {
   const entries = state.catalog?.serviceEligibleStaff?.[serviceId] || [];
-  const ids = new Set(entries.map(e => e.staffId));
+  const ids = new Set(entries.map(e => (typeof e === 'string' ? e : e.staffId)));
   return (state.catalog?.staff || []).filter(m => ids.has(m.id));
 }
 
@@ -399,20 +399,16 @@ function renderStep2Staff() {
     return;
   }
 
-  list.innerHTML = eligible.map(m => {
-    const restText = m.restWeekday != null ? `Descansa los ${WEEKDAY_NAMES_LONG[m.restWeekday]}` : '';
-    return `
+  list.innerHTML = eligible.map(m => `
       <button type="button" class="staff-row" data-staff-id="${escapeHtml(m.id)}">
         <span class="choice-avatar" aria-hidden="true">${escapeHtml(getInitials(m.displayName))}</span>
         <span class="choice-body">
           <span class="choice-title">${escapeHtml(m.displayName)}</span>
           <span class="choice-desc">${escapeHtml(m.specialtySummary)}</span>
-          ${restText ? `<span class="choice-rest">${escapeHtml(restText)}</span>` : ''}
         </span>
         <span class="ico ico-caret-right row-arrow" aria-hidden="true"></span>
       </button>
-    `;
-  }).join('');
+    `).join('');
 }
 
 async function selectStaff(staffId, { autoScrollTarget = null } = {}) {

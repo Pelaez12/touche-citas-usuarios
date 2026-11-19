@@ -988,11 +988,6 @@ h3 {
   line-height: 1.4;
 }
 
-.choice-rest {
-  font-size: 0.84rem;
-  color: var(--ink-soft);
-}
-
 .choice-arrow { color: var(--clay); }
 
 /* Paso 3: Calendario mensual estilo Calendly */

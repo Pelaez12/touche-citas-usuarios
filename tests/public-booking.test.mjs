@@ -237,7 +237,7 @@ test('formatServiceName converts uppercase catalog labels cleanly', () => {
   assert.equal(formatServiceName('Evaluación y diagnóstico capilar'), 'Evaluación y diagnóstico capilar');
 });
 
-test('GET /api/public/catalog exposes active services & eligible specialists with zero client PII', async () => {
+test('GET /api/public/catalog exposes active services & eligible specialists with zero client PII or internal staff info', async () => {
   const { db } = createTestDb();
   const { status, data } = await callApi(db, '/api/public/catalog');
   assert.equal(status, 200);
@@ -246,15 +246,20 @@ test('GET /api/public/catalog exposes active services & eligible specialists wit
   assert.equal(data.staff.length, 3);
   const miriam = data.staff.find(s => s.id === 'staff-miriam');
   assert.ok(!miriam.specialtySummary.includes('apoyo temporal'), 'Internal ops text should be sanitized');
-  assert.deepEqual(data.serviceEligibleStaff['catalog-24'].map(x => x.staffId), ['staff-milagros']);
+  assert.equal(Object.hasOwn(miriam, 'restWeekday'), false, 'Rest weekday must never be exposed publicly');
+  assert.equal(Object.hasOwn(miriam, 'role'), false, 'Internal role must never be exposed publicly');
+  assert.equal(Object.hasOwn(miriam, 'seniorityTier'), false, 'Internal seniority must never be exposed publicly');
+  assert.deepEqual(data.serviceEligibleStaff['catalog-24'], ['staff-milagros']);
   assert.deepEqual(
-    data.serviceEligibleStaff['catalog-14'].map(x => x.staffId).sort(),
+    [...data.serviceEligibleStaff['catalog-14']].sort(),
     ['staff-maritza', 'staff-miriam']
   );
   const raw = JSON.stringify(data);
   assert.ok(!raw.includes('Clienta Secreta Real'));
   assert.ok(!raw.includes('12345678'));
   assert.ok(!raw.includes('987111222'));
+  assert.ok(!raw.includes('plan_b'));
+  assert.ok(!raw.includes('restWeekday'));
 });
 
 test('GET /api/public/availability respects Sundays, rest days, exceptions, and same-day lead time', async () => {
@@ -283,6 +288,15 @@ test('GET /api/public/availability respects Sundays, rest days, exceptions, and 
   const todayCorte = await callApi(db, '/api/public/availability?serviceId=catalog-24&date=2026-11-19');
   assert.equal(todayCorte.status, 200);
   assert.equal(todayCorte.data.slots[0].time, '10:00');
+
+  // Monthly calendar for Miriam (rest_weekday = 2, Tuesday): every Tuesday is silently disabled with 0 slots and no personal reason leaked
+  const miriamMonth = await callApi(db, '/api/public/days?serviceId=catalog-64&staffId=staff-miriam&month=2026-11');
+  assert.equal(miriamMonth.status, 200);
+  const tue24 = miriamMonth.data.days.find(d => d.date === '2026-11-24');
+  const wed25 = miriamMonth.data.days.find(d => d.date === '2026-11-25');
+  assert.equal(tue24.availableCount, 0, 'Miriam Tuesday must be disabled');
+  assert.ok(wed25.availableCount > 0, 'Miriam Wednesday must be open');
+  assert.ok(!JSON.stringify(miriamMonth.data).toLowerCase().includes('descans'), 'Must never leak rest-day text');
 
   // Add a partial_block on Milagros 10:00-11:30 on 2026-11-26 (Thursday)
   sqlite.exec(`INSERT INTO staff_schedule_exceptions(id, staff_id, exception_date, kind, starts_time, ends_time, reason)
