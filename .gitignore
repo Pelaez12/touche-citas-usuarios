@@ -1,0 +1,9 @@
+node_modules/
+.wrangler/
+.local/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+worker/assets.generated.mjs
+.DS_Store
+Thumbs.db

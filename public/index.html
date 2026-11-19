@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="es-PE">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#96504a">
+  <meta name="description" content="Reserva tu cita online en Touché Hair Studio (Surquillo, Lima). Especialistas en color, Shades EQ, corte, tratamientos y evaluación capilar gratuita.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Touché Citas">
+  <title>Reserva tu cita — Touché Hair Studio</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="/brand/icon-192.png">
+  <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+  <link rel="stylesheet" href="/brand/fonts.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Ir al formulario de reserva</a>
+
+  <header class="topbar" id="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-left">
+        <button type="button" class="icon-btn back-btn" id="nav-back-btn" aria-label="Volver al paso anterior" hidden>
+          <span class="ico ico-arrow-left" aria-hidden="true"></span>
+        </button>
+        <a href="/" class="brand-lockup" id="brand-home-link" aria-label="Touché Hair Studio — Inicio">
+          <img class="brand-logo" src="/brand/logo.png" alt="Touché" width="96" height="32">
+          <span class="brand-sub">hair studio</span>
+        </a>
+      </div>
+      <div class="step-indicator" id="step-indicator" aria-live="polite">Paso 1 de 4</div>
+    </div>
+    <div class="progress-track" role="progressbar" aria-label="Progreso de tu reserva" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" id="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+  </header>
+
+  <main class="shell" id="main-content" tabindex="-1">
+    <div class="global-banner" id="global-error" role="alert" hidden>
+      <span class="ico ico-info" aria-hidden="true"></span>
+      <span id="global-error-text"></span>
+      <button type="button" class="text-btn" id="global-retry-btn">Reintentar</button>
+    </div>
+
+    <!-- PASO 1: SERVICIO -->
+    <section class="step-panel is-active" id="step-service" data-step="1" aria-labelledby="step-1-heading">
+      <div class="hero-intro">
+        <h1 id="step-1-heading">Reserva tu cita</h1>
+        <p class="hero-sub">Atención previa cita en Surquillo · Lunes a sábado, 9:00 a. m. a 7:00 p. m.</p>
+      </div>
+
+      <button type="button" class="spotlight-btn" id="featured-eval-btn" hidden>
+        <span class="spotlight-icon" aria-hidden="true">
+          <span class="ico ico-sparkle"></span>
+        </span>
+        <span class="spotlight-body">
+          <span class="spotlight-title-row">
+            <span class="spotlight-title" id="featured-eval-name">Evaluación y diagnóstico capilar</span>
+            <span class="free-tag">Gratis</span>
+          </span>
+          <span class="spotlight-desc">20 min sin compromiso. Ideal si buscas Shades EQ, balayage, alisado o cambio de look.</span>
+        </span>
+        <span class="ico ico-caret-right spotlight-arrow" aria-hidden="true"></span>
+      </button>
+
+      <div class="search-field">
+        <span class="ico ico-search search-ico" aria-hidden="true"></span>
+        <label for="service-search" class="sr-only">Buscar servicio</label>
+        <input
+          type="search"
+          id="service-search"
+          class="search-input"
+          placeholder="Buscar Shades, corte, botox, manicure..."
+          autocomplete="off"
+          enterkeyhint="search"
+        >
+        <button type="button" class="search-clear" id="service-search-clear" aria-label="Limpiar búsqueda" hidden>
+          <span class="ico ico-x" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div class="category-rail" id="category-rail" role="tablist" aria-label="Categorías de servicios"></div>
+
+      <div class="surface list-surface" id="services-list" aria-live="polite">
+        <div class="skeleton-stack" aria-label="Cargando servicios">
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+        </div>
+      </div>
+
+      <p class="policy-note" id="price-policy-note">
+        Los precios son referenciales. En servicios de color y alisados, el monto final se confirma en salón tras evaluar el largo y estado de tu cabello.
+      </p>
+    </section>
+
+    <!-- PASO 2: ESPECIALISTA -->
+    <section class="step-panel" id="step-staff" data-step="2" aria-labelledby="step-2-heading" hidden>
+      <div class="recap-bar">
+        <div class="recap-copy">
+          <span class="recap-primary" id="recap-service-name"></span>
+          <span class="recap-meta" id="recap-service-meta"></span>
+        </div>
+        <button type="button" class="link-btn" data-goto-step="1">Cambiar</button>
+      </div>
+
+      <div class="step-header">
+        <h2 id="step-2-heading">¿Con quién te gustaría atenderte?</h2>
+        <p class="step-sub">Mostramos solo a las especialistas disponibles para este servicio.</p>
+      </div>
+
+      <button type="button" class="recommended-choice" id="any-staff-btn">
+        <span class="choice-avatar is-team" aria-hidden="true">
+          <span class="ico ico-users"></span>
+        </span>
+        <span class="choice-body">
+          <span class="choice-title-row">
+            <span class="choice-title">Primera especialista disponible</span>
+            <span class="accent-tag">Más horarios</span>
+          </span>
+          <span class="choice-desc">Te mostramos todos los horarios libres y te asignamos a nuestra especialista disponible.</span>
+        </span>
+        <span class="ico ico-caret-right choice-arrow" aria-hidden="true"></span>
+      </button>
+
+      <div class="surface list-surface" id="staff-list"></div>
+    </section>
+
+    <!-- PASO 3: DÍA Y HORA -->
+    <section class="step-panel" id="step-datetime" data-step="3" aria-labelledby="step-3-heading" hidden>
+      <div class="recap-bar">
+        <div class="recap-copy">
+          <span class="recap-primary" id="recap-step3-service"></span>
+          <span class="recap-meta" id="recap-step3-staff"></span>
+        </div>
+        <button type="button" class="link-btn" data-goto-step="2">Cambiar</button>
+      </div>
+
+      <div class="step-header step-header-row">
+        <div>
+          <h2 id="step-3-heading">Elige el día y la hora</h2>
+          <p class="step-sub" id="active-month-label">Horarios disponibles en tiempo real</p>
+        </div>
+        <button type="button" class="ghost-pill" id="toggle-month-btn" aria-expanded="false" aria-controls="month-drawer">
+          <span class="ico ico-calendar" aria-hidden="true"></span>
+          <span>Ver mes</span>
+        </button>
+      </div>
+
+      <div class="date-strip" id="date-strip" role="listbox" aria-label="Próximos días disponibles"></div>
+
+      <div class="month-drawer" id="month-drawer" aria-hidden="true">
+        <div class="month-drawer-inner">
+          <div class="surface calendar-surface">
+            <div class="calendar-nav">
+              <button type="button" class="icon-btn" id="cal-prev-btn" aria-label="Mes anterior">
+                <span class="ico ico-caret-left" aria-hidden="true"></span>
+              </button>
+              <span class="calendar-month-title" id="cal-month-title"></span>
+              <button type="button" class="icon-btn" id="cal-next-btn" aria-label="Mes siguiente">
+                <span class="ico ico-caret-right" aria-hidden="true"></span>
+              </button>
+            </div>
+            <div class="calendar-weekdays" aria-hidden="true">
+              <span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sá</span><span>Do</span>
+            </div>
+            <div class="calendar-grid" id="cal-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slots-container" id="slots-container" aria-live="polite"></div>
+    </section>
+
+    <!-- PASO 4: TUS DATOS -->
+    <section class="step-panel" id="step-details" data-step="4" aria-labelledby="step-4-heading" hidden>
+      <div class="surface summary-surface">
+        <div class="summary-top">
+          <div>
+            <p class="summary-service" id="summary-service"></p>
+            <p class="summary-datetime" id="summary-datetime"></p>
+          </div>
+          <button type="button" class="link-btn" data-goto-step="3">Editar</button>
+        </div>
+        <div class="summary-meta-row">
+          <span class="meta-item">
+            <span class="ico ico-user" aria-hidden="true"></span>
+            <span id="summary-staff"></span>
+          </span>
+          <span class="meta-item">
+            <span class="ico ico-clock" aria-hidden="true"></span>
+            <span id="summary-duration"></span>
+          </span>
+        </div>
+        <p class="summary-price-note" id="summary-price-note"></p>
+      </div>
+
+      <div class="step-header">
+        <h2 id="step-4-heading">Tus datos para reservar</h2>
+        <p class="step-sub">Solo tres datos para confirmar tu turno al instante.</p>
+      </div>
+
+      <form class="booking-form" id="booking-form" novalidate>
+        <div class="field">
+          <label for="client-name">Nombre y apellido</label>
+          <input
+            type="text"
+            id="client-name"
+            name="name"
+            required
+            minlength="2"
+            maxlength="120"
+            autocomplete="name"
+            autocapitalize="words"
+            placeholder="Ej. María Fernanda Torres"
+          >
+          <span class="field-error" id="err-name" role="alert"></span>
+        </div>
+
+        <div class="field-grid">
+          <div class="field">
+            <label for="client-phone">Celular (WhatsApp)</label>
+            <input
+              type="tel"
+              id="client-phone"
+              name="phone"
+              required
+              inputmode="tel"
+              autocomplete="tel"
+              placeholder="Ej. 987 654 321"
+            >
+            <span class="field-error" id="err-phone" role="alert"></span>
+          </div>
+
+          <div class="field">
+            <label for="client-dni">DNI (8 dígitos)</label>
+            <input
+              type="text"
+              id="client-dni"
+              name="dni"
+              required
+              inputmode="numeric"
+              pattern="[0-9]{8}"
+              maxlength="8"
+              autocomplete="off"
+              placeholder="Ej. 45678912"
+            >
+            <span class="field-error" id="err-dni" role="alert"></span>
+          </div>
+        </div>
+        <p class="field-hint">Usamos tu DNI únicamente para identificar tu ficha e historial de atención en el salón.</p>
+
+        <div class="field">
+          <label for="client-notes">¿Algún detalle para tu estilista? <span class="optional-label">(opcional)</span></label>
+          <textarea
+            id="client-notes"
+            name="notes"
+            rows="2"
+            maxlength="500"
+            placeholder="Ej. Primera vez con Shades, cabello con tintura previa..."
+          ></textarea>
+        </div>
+
+        <div class="form-alert" id="form-error" role="alert" hidden>
+          <span class="ico ico-info" aria-hidden="true"></span>
+          <span id="form-error-text"></span>
+        </div>
+
+        <div class="sticky-cta-bar">
+          <div class="sticky-cta-inner">
+            <div class="sticky-cta-summary">
+              <span class="sticky-cta-time" id="sticky-time"></span>
+              <span class="sticky-cta-price" id="sticky-price"></span>
+            </div>
+            <button type="submit" class="primary-btn" id="submit-booking-btn">
+              <span class="btn-label">Confirmar mi cita</span>
+              <span class="btn-spinner" aria-hidden="true" hidden></span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- PASO 5: CONFIRMACIÓN -->
+    <section class="step-panel" id="step-confirmation" data-step="5" aria-labelledby="step-5-heading" hidden>
+      <div class="confirm-hero">
+        <div class="confirm-emblem" aria-hidden="true">
+          <span class="ico ico-check"></span>
+        </div>
+        <h2 id="step-5-heading">¡Tu cita está reservada!</h2>
+        <p class="confirm-sub">Ya registramos tu turno en Touché Hair Studio. Te esperamos.</p>
+      </div>
+
+      <div class="surface ticket-surface">
+        <div class="ticket-code-row">
+          <span class="ticket-code-label">Código de reserva</span>
+          <strong class="ticket-code" id="ticket-code">TCH-000000</strong>
+        </div>
+
+        <dl class="ticket-details">
+          <div class="ticket-row">
+            <dt>Servicio</dt>
+            <dd id="ticket-service"></dd>
+          </div>
+          <div class="ticket-row">
+            <dt>Fecha y hora</dt>
+            <dd id="ticket-datetime"></dd>
+          </div>
+          <div class="ticket-row">
+            <dt>Especialista</dt>
+            <dd id="ticket-staff"></dd>
+          </div>
+          <div class="ticket-row">
+            <dt>Precio</dt>
+            <dd id="ticket-price"></dd>
+          </div>
+          <div class="ticket-row">
+            <dt>Dirección</dt>
+            <dd>
+              <span id="ticket-address">Calle Las Tiendas 261, Dpto. 201, Surquillo</span>
+              <span class="ticket-subline" id="ticket-reference">Frente al Metro de Aramburú · Timbre 201</span>
+            </dd>
+          </div>
+        </dl>
+
+        <div class="ticket-tip" id="ticket-tip">
+          <span class="ico ico-sparkle" aria-hidden="true"></span>
+          <p id="ticket-tip-text"></p>
+        </div>
+      </div>
+
+      <div class="confirm-actions">
+        <button type="button" class="primary-btn full-btn" id="download-ics-btn">
+          <span class="ico ico-calendar-plus" aria-hidden="true"></span>
+          <span>Agregar a mi calendario</span>
+        </button>
+
+        <div class="confirm-secondary-row">
+          <a class="secondary-btn" id="gcal-link" href="#" target="_blank" rel="noopener noreferrer">
+            <span class="ico ico-calendar-check" aria-hidden="true"></span>
+            <span>Google Calendar</span>
+          </a>
+          <a class="secondary-btn" id="maps-link" href="https://maps.app.goo.gl/52v9AbJ4YCYamjrn7" target="_blank" rel="noopener noreferrer">
+            <span class="ico ico-map-pin" aria-hidden="true"></span>
+            <span>Cómo llegar</span>
+          </a>
+        </div>
+
+        <button type="button" class="ghost-btn" id="book-another-btn">Agendar otra cita</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="salon-footer">
+    <div class="footer-inner">
+      <a class="footer-loc" href="https://maps.app.goo.gl/52v9AbJ4YCYamjrn7" target="_blank" rel="noopener noreferrer">
+        <span class="ico ico-map-pin" aria-hidden="true"></span>
+        <span>Calle Las Tiendas 261, Dpto. 201, Surquillo (Frente a Metro)</span>
+      </a>
+      <p class="footer-payments">Tarjetas en cuotas sin intereses · Yape · Plin · Efectivo · Transferencia</p>
+    </div>
+  </footer>
+
+  <script type="module" src="/app.mjs"></script>
+</body>
+</html>

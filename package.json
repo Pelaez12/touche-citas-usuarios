@@ -1,0 +1,11 @@
+{
+  "name": "touche-citas-usuarios",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:assets": "node scripts/build_worker_assets.mjs",
+    "pretest": "node scripts/build_worker_assets.mjs",
+    "test": "node --experimental-sqlite --test tests/*.test.mjs",
+    "deploy": "node scripts/build_worker_assets.mjs && npx --yes wrangler deploy"
+  }
+}
