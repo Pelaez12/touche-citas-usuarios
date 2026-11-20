@@ -81,7 +81,7 @@ function buildPublicService(row) {
   };
 }
 
-export async function handlePublicApi(request, db, readBody, { now = new Date(), sameOriginCheck = null } = {}) {
+export async function handlePublicApi(request, db, readBody, { now = new Date(), sameOriginCheck = null, clientSession = null } = {}) {
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method;
@@ -310,7 +310,7 @@ export async function handlePublicApi(request, db, readBody, { now = new Date(),
 
     let payload;
     try {
-      payload = validateBookingPayload(await readBody(request));
+      payload = validateBookingPayload(await readBody(request), { sessionClient: clientSession });
     } catch (e) {
       return json({ error: e.message }, 400);
     }
@@ -396,42 +396,46 @@ export async function handlePublicApi(request, db, readBody, { now = new Date(),
       }
     }
 
-    // Privacy-safe client resolution strictly by exact 8-digit DNI
+    // Client resolution: prefer authenticated client session, otherwise resolve strictly by exact 8-digit DNI
     const nowIso = now.toISOString();
-    let existingClient = await db.prepare('SELECT id, phone, archived_at AS archivedAt FROM clients WHERE dni = ?').bind(payload.dni).first();
-    if (existingClient?.archivedAt) {
-      return json(
-        { error: 'No pudimos completar tu reserva en línea con este documento. Por favor comunícate con recepción del salón para ayudarte.' },
-        409
-      );
-    }
-
     let clientId;
-    if (existingClient) {
-      clientId = existingClient.id;
-      if ((!existingClient.phone || !String(existingClient.phone).trim()) && payload.phone) {
-        await db.prepare('UPDATE clients SET phone = ?, updated_at = ? WHERE id = ? AND (phone IS NULL OR phone = "")')
-          .bind(payload.phone, nowIso, clientId).run();
-      }
+    if (clientSession?.clientId) {
+      clientId = clientSession.clientId;
     } else {
-      clientId = crypto.randomUUID();
-      try {
-        await db.batch([
-          db.prepare(`INSERT INTO clients(id, full_name, dni, phone, notes, in_directory, identity_status, updated_at)
-            VALUES (?, ?, ?, ?, ?, 1, 'confirmed', ?)`)
-            .bind(clientId, payload.name, payload.dni, payload.phone, 'Registrada desde agenda web de clientas', nowIso),
-          db.prepare('INSERT INTO audit_log(id, actor, action, entity_type, entity_id, changes_json) VALUES (?, ?, ?, ?, ?, ?)')
-            .bind(crypto.randomUUID(), 'reserva-web-clienta', 'public-create-client', 'client', clientId, JSON.stringify({ source: 'web-clienta' }))
-        ]);
-      } catch (err) {
-        if (/UNIQUE constraint failed: clients\.dni/.test(String(err?.message))) {
-          const raceClient = await db.prepare('SELECT id, archived_at AS archivedAt FROM clients WHERE dni = ?').bind(payload.dni).first();
-          if (!raceClient || raceClient.archivedAt) {
-            return json({ error: 'No pudimos completar tu reserva en línea. Intenta nuevamente.' }, 409);
+      let existingClient = await db.prepare('SELECT id, phone, archived_at AS archivedAt FROM clients WHERE dni = ?').bind(payload.dni).first();
+      if (existingClient?.archivedAt) {
+        return json(
+          { error: 'No pudimos completar tu reserva en línea con este documento. Por favor comunícate con recepción al 992 272 521.' },
+          409
+        );
+      }
+
+      if (existingClient) {
+        clientId = existingClient.id;
+        if ((!existingClient.phone || !String(existingClient.phone).trim()) && payload.phone) {
+          await db.prepare('UPDATE clients SET phone = ?, updated_at = ? WHERE id = ? AND (phone IS NULL OR phone = "")')
+            .bind(payload.phone, nowIso, clientId).run();
+        }
+      } else {
+        clientId = crypto.randomUUID();
+        try {
+          await db.batch([
+            db.prepare(`INSERT INTO clients(id, full_name, dni, phone, notes, in_directory, identity_status, updated_at)
+              VALUES (?, ?, ?, ?, ?, 1, 'confirmed', ?)`)
+              .bind(clientId, payload.name, payload.dni, payload.phone, 'Registrada desde agenda web de clientas', nowIso),
+            db.prepare('INSERT INTO audit_log(id, actor, action, entity_type, entity_id, changes_json) VALUES (?, ?, ?, ?, ?, ?)')
+              .bind(crypto.randomUUID(), 'reserva-web-clienta', 'public-create-client', 'client', clientId, JSON.stringify({ source: 'web-clienta' }))
+          ]);
+        } catch (err) {
+          if (/UNIQUE constraint failed: clients\.dni/.test(String(err?.message))) {
+            const raceClient = await db.prepare('SELECT id, archived_at AS archivedAt FROM clients WHERE dni = ?').bind(payload.dni).first();
+            if (!raceClient || raceClient.archivedAt) {
+              return json({ error: 'No pudimos completar tu reserva en línea. Intenta nuevamente.' }, 409);
+            }
+            clientId = raceClient.id;
+          } else {
+            throw err;
           }
-          clientId = raceClient.id;
-        } else {
-          throw err;
         }
       }
     }

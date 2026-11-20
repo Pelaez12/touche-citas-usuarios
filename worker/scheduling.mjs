@@ -3,6 +3,9 @@ export const SALON_INFO = {
   address: 'Calle Las Tiendas 261, Dpto. 201, Surquillo',
   reference: 'Frente al Metro de Aramburú · Timbre 201',
   mapsUrl: 'https://maps.app.goo.gl/52v9AbJ4YCYamjrn7',
+  supportPhone: '992 272 521',
+  supportTel: '+51992272521',
+  supportWhatsappUrl: 'https://wa.me/51992272521',
   paymentsNote: 'Aceptamos todas las tarjetas (cuotas sin intereses), Yape, Plin, efectivo y transferencia.',
   pricePolicyNote: 'Los precios son referenciales. En servicios de color y alisados, el monto final se confirma en salón tras evaluar el largo y estado de tu cabello.'
 };
@@ -360,19 +363,10 @@ export function normalizePeruPhone(raw) {
   return digits;
 }
 
-export function validateBookingPayload(input) {
+export function validateBookingPayload(input, { sessionClient = null } = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw Error('Faltan datos para completar la reserva.');
   }
-  const name = String(input.name || '').trim().replace(/\s+/g, ' ');
-  if (name.length < 2 || name.length > 120) {
-    throw Error('Escribe tu nombre y apellido (entre 2 y 120 caracteres).');
-  }
-  const dni = String(input.dni || '').trim().replace(/\s+/g, '');
-  if (!/^\d{8}$/.test(dni)) {
-    throw Error('Ingresa tu DNI de 8 dígitos.');
-  }
-  const phone = normalizePeruPhone(input.phone);
   const serviceId = String(input.serviceId || '').trim();
   if (!serviceId) throw Error('Selecciona un servicio.');
   const date = String(input.date || '').trim();
@@ -382,6 +376,29 @@ export function validateBookingPayload(input) {
   }
   const staffId = typeof input.staffId === 'string' && input.staffId.trim() ? input.staffId.trim() : null;
   const notes = String(input.notes || '').trim().slice(0, 500);
+
+  if (sessionClient) {
+    return {
+      name: sessionClient.name,
+      dni: sessionClient.dni || null,
+      phone: sessionClient.phone || '',
+      serviceId,
+      date,
+      time,
+      staffId,
+      notes
+    };
+  }
+
+  const name = String(input.name || '').trim().replace(/\s+/g, ' ');
+  if (name.length < 2 || name.length > 120) {
+    throw Error('Escribe tu nombre y apellido (entre 2 y 120 caracteres).');
+  }
+  const dni = String(input.dni || '').trim().replace(/\s+/g, '');
+  if (!/^\d{8}$/.test(dni)) {
+    throw Error('Ingresa tu DNI de 8 dígitos.');
+  }
+  const phone = normalizePeruPhone(input.phone);
   return { name, dni, phone, serviceId, date, time, staffId, notes };
 }
 

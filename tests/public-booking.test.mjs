@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import worker from '../worker/index.mjs';
+import { getClientSession, handleClientAuth } from '../worker/client-auth.mjs';
 import { handlePublicApi } from '../worker/public-api.mjs';
 import { formatServiceName } from '../worker/scheduling.mjs';
 
@@ -179,6 +180,23 @@ function createTestDb() {
       window_start INTEGER NOT NULL,
       attempts INTEGER NOT NULL
     );
+    CREATE TABLE client_accounts (
+      id TEXT PRIMARY KEY,
+      client_id TEXT NOT NULL UNIQUE REFERENCES clients(id),
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      salt TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_login_at TEXT
+    );
+    CREATE TABLE client_sessions (
+      token_hash TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL REFERENCES client_accounts(id),
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    );
 
     INSERT INTO agenda_preferences VALUES ('salon', '09:00', '19:00', '[1,2,3,4,5,6]');
 
@@ -208,6 +226,7 @@ function createTestDb() {
 
     INSERT INTO clients(id, full_name, dni, phone, archived_at) VALUES
       ('client-existing', 'Clienta Secreta Real', '12345678', '987111222', NULL),
+      ('client-unclaimed', 'Carmen Peña Flores', NULL, '944555666', NULL),
       ('client-archived', 'Clienta Archivada', '87654321', '987000111', '2026-01-01T00:00:00Z');
   `);
   return { sqlite, db: makeD1Adapter(sqlite) };
@@ -215,9 +234,10 @@ function createTestDb() {
 
 const FIXED_NOW = new Date('2026-11-19T14:10:00Z'); // 09:10 AM Lima (Thursday)
 
-async function callApi(db, path, { method = 'GET', body = undefined, ip = '203.0.113.10', origin = 'https://citas.touche.test' } = {}) {
+async function callApi(db, path, { method = 'GET', body = undefined, ip = '203.0.113.10', origin = 'https://citas.touche.test', cookie = '' } = {}) {
   const headers = new Headers({ 'cf-connecting-ip': ip });
   if (origin) headers.set('origin', origin);
+  if (cookie) headers.set('cookie', cookie);
   if (body !== undefined) headers.set('content-type', 'application/json');
   const req = new Request(`https://citas.touche.test${path}`, {
     method,
@@ -226,7 +246,15 @@ async function callApi(db, path, { method = 'GET', body = undefined, ip = '203.0
   });
   const readBody = async r => r.json();
   const sameOriginCheck = r => r.headers.get('origin') === new URL(r.url).origin;
-  const res = await handlePublicApi(req, db, readBody, { now: FIXED_NOW, sameOriginCheck });
+  let res;
+  if (path.startsWith('/api/client/')) {
+    res = await handleClientAuth(req, db, readBody, { now: FIXED_NOW, sameOriginCheck });
+  } else {
+    const clientSession = path === '/api/public/book' && method === 'POST'
+      ? await getClientSession(req, db, FIXED_NOW)
+      : null;
+    res = await handlePublicApi(req, db, readBody, { now: FIXED_NOW, sameOriginCheck, clientSession });
+  }
   return { status: res.status, data: await res.json(), headers: res.headers };
 }
 
@@ -440,4 +468,114 @@ test('Worker serves HTML, CSS, SW, and strict security headers', async () => {
 
   const resPrivate = await worker.fetch(new Request('https://citas.touche.test/api/clients'), { DB: db });
   assert.equal(resPrivate.status, 404);
+});
+
+test('Client portal onboarding: unclaimed search returns ONLY names, claim removes name from list, login & session booking work', async () => {
+  const { db } = createTestDb();
+
+  // Search accent-insensitively ("pena" finds "Carmen Peña Flores") with ZERO phone/DNI leaked
+  const search1 = await callApi(db, '/api/client/unclaimed-names?q=pena');
+  assert.equal(search1.status, 200);
+  assert.deepEqual(search1.data.results, [{ id: 'client-unclaimed', name: 'Carmen Peña Flores' }]);
+  assert.ok(!JSON.stringify(search1.data).includes('944555666'));
+
+  // Claim requirements return ONLY boolean flags (never stored phone)
+  const reqs = await callApi(db, '/api/client/claim-requirements?clientId=client-unclaimed');
+  assert.equal(reqs.status, 200);
+  assert.deepEqual(reqs.data, {
+    clientId: 'client-unclaimed',
+    name: 'Carmen Peña Flores',
+    needsPhone: false,
+    needsDni: true,
+    needsBirthday: true
+  });
+
+  // Claim profile with Gmail + password + missing DNI
+  const claimed = await callApi(db, '/api/client/claim', {
+    method: 'POST',
+    body: {
+      clientId: 'client-unclaimed',
+      email: 'carmen.pena@gmail.com',
+      password: 'clave segura 2026',
+      phone: '944555666',
+      dni: '40506070',
+      birthday: '1975-05-14'
+    }
+  });
+  assert.equal(claimed.status, 201);
+  assert.equal(claimed.data.signedIn, true);
+  assert.equal(claimed.data.client.id, 'client-unclaimed');
+  const setCookie = claimed.headers.get('set-cookie') || '';
+  assert.ok(setCookie.includes('__Host-touche_client_session='));
+  const cookiePair = setCookie.split(';')[0];
+
+  // Immediately disappears from unclaimed names list!
+  const searchAfter = await callApi(db, '/api/client/unclaimed-names?q=pena');
+  assert.equal(searchAfter.status, 200);
+  assert.deepEqual(searchAfter.data.results, []);
+
+  // Duplicate claim blocked with 409
+  const dupClaim = await callApi(db, '/api/client/claim', {
+    method: 'POST',
+    body: {
+      clientId: 'client-unclaimed',
+      email: 'otra@gmail.com',
+      password: 'otra clave 2026',
+      phone: '911222333',
+      dni: '40506071'
+    }
+  });
+  assert.equal(dupClaim.status, 409);
+
+  // Authenticated booking works seamlessly without re-sending name/phone/dni
+  const booked = await callApi(db, '/api/public/book', {
+    method: 'POST',
+    cookie: cookiePair,
+    body: {
+      serviceId: 'catalog-24',
+      staffId: 'staff-milagros',
+      date: '2026-11-26',
+      time: '10:00',
+      notes: 'Primera reserva desde mi cuenta'
+    }
+  });
+  assert.equal(booked.status, 201);
+  assert.equal(booked.data.clientName, 'Carmen Peña Flores');
+
+  // /api/client/me returns authenticated profile + upcoming appointment
+  const me = await callApi(db, '/api/client/me', { cookie: cookiePair });
+  assert.equal(me.status, 200);
+  assert.equal(me.data.authenticated, true);
+  assert.equal(me.data.client.email, 'carmen.pena@gmail.com');
+  assert.equal(me.data.upcomingAppointments.length, 1);
+
+  // Logout clears session, then login restores it
+  const out = await callApi(db, '/api/client/logout', { method: 'POST', cookie: cookiePair });
+  assert.equal(out.status, 200);
+  const meAfterOut = await callApi(db, '/api/client/me', { cookie: cookiePair });
+  assert.equal(meAfterOut.data.authenticated, false);
+
+  const loginOk = await callApi(db, '/api/client/login', {
+    method: 'POST',
+    body: { email: 'carmen.pena@gmail.com', password: 'clave segura 2026' }
+  });
+  assert.equal(loginOk.status, 200);
+  assert.equal(loginOk.data.signedIn, true);
+  assert.equal(loginOk.data.upcomingAppointments.length, 1);
+
+  // Brand-new client registration (or "No encuentro mi nombre")
+  const reg = await callApi(db, '/api/client/register', {
+    method: 'POST',
+    body: {
+      name: 'Lucía Paredes',
+      email: 'lucia.paredes@gmail.com',
+      password: 'mipassword2026',
+      phone: '991234567',
+      dni: '70809012',
+      birthday: '1988-09-20'
+    }
+  });
+  assert.equal(reg.status, 201);
+  assert.equal(reg.data.registered, true);
+  assert.equal(reg.data.client.name, 'Lucía Paredes');
 });

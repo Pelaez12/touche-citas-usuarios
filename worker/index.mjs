@@ -1,4 +1,5 @@
 import assets from './assets.generated.mjs';
+import { getClientSession, handleClientAuth } from './client-auth.mjs';
 import { handlePublicApi } from './public-api.mjs';
 
 const SECURITY_BASE = {
@@ -89,14 +90,30 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    if (path.startsWith('/api/client/')) {
+      try {
+        const res = await handleClientAuth(request, env.DB, readBody, { sameOriginCheck: sameOrigin });
+        if (res) return res;
+      } catch (err) {
+        console.error(JSON.stringify({ event: 'client-auth-error', path, method: request.method, message: String(err?.message || err) }));
+        return new Response(
+          JSON.stringify({ error: 'No pudimos completar tu solicitud en este momento. Inténtalo nuevamente o escríbenos al 992 272 521.' }),
+          { status: 500, headers: { ...NO_STORE_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } }
+        );
+      }
+    }
+
     if (path.startsWith('/api/public/')) {
       try {
-        const res = await handlePublicApi(request, env.DB, readBody, { sameOriginCheck: sameOrigin });
+        const clientSession = path === '/api/public/book' && request.method === 'POST'
+          ? await getClientSession(request, env.DB)
+          : null;
+        const res = await handlePublicApi(request, env.DB, readBody, { sameOriginCheck: sameOrigin, clientSession });
         if (res) return res;
       } catch (err) {
         console.error(JSON.stringify({ event: 'public-booking-error', path, method: request.method, message: String(err?.message || err) }));
         return new Response(
-          JSON.stringify({ error: 'No pudimos completar tu solicitud en este momento. Inténtalo nuevamente.' }),
+          JSON.stringify({ error: 'No pudimos completar tu solicitud en este momento. Inténtalo nuevamente o escríbenos al 992 272 521.' }),
           { status: 500, headers: { ...NO_STORE_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } }
         );
       }
