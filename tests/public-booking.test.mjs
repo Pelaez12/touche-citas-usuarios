@@ -452,7 +452,10 @@ test('Worker serves HTML, CSS, SW, and strict security headers', async () => {
   const resHtml = await worker.fetch(new Request('https://citas.touche.test/'), { DB: db });
   assert.equal(resHtml.status, 200);
   assert.match(resHtml.headers.get('content-type') || '', /text\/html/);
-  assert.match(resHtml.headers.get('content-security-policy') || '', /default-src 'self'/);
+  const csp = resHtml.headers.get('content-security-policy') || '';
+  assert.match(csp, /default-src 'self'/);
+  assert.match(csp, /frame-src https:\/\/www\.facebook\.com/);
+  assert.match(csp, /frame-ancestors 'none'/);
   assert.equal(resHtml.headers.get('cache-control'), 'no-store');
 
   const resSw = await worker.fetch(new Request('https://citas.touche.test/sw.js'), { DB: db });

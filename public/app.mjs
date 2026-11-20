@@ -1342,6 +1342,14 @@ function bindEvents() {
 
   $('booking-form').addEventListener('submit', handleBookingSubmit);
   $('download-ics-btn').addEventListener('click', downloadIcs);
+  $('nav-conocenos-link').addEventListener('click', e => {
+    e.preventDefault();
+    scrollToEl($('sec-conocenos'));
+  });
+  $('about-book-btn').addEventListener('click', () => {
+    const target = state.client ? $('booking-workspace') : $('gate-shell');
+    scrollToEl(target);
+  });
   $('book-another-btn').addEventListener('click', () => {
     $('sec-confirmation').hidden = true;
     $('booking-workspace').hidden = false;

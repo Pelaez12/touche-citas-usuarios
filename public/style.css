@@ -226,6 +226,27 @@ button {
   justify-content: flex-end;
 }
 
+.nav-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--t-quick) var(--ease), border-color var(--t-quick) var(--ease);
+}
+.nav-pill:hover {
+  background: var(--surface-tint);
+  border-color: var(--clay);
+  color: var(--clay-ink);
+}
+
 .step-pill {
   font-size: 0.82rem;
   font-weight: 700;
@@ -1560,6 +1581,122 @@ h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
 
 .confirm-actions { display: flex; flex-direction: column; gap: 12px; }
 .confirm-secondary-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Sección Conócenos (Reels de Facebook) */
+.about-section {
+  max-width: 1000px;
+  margin: 42px auto 0;
+  padding: 32px 20px;
+  border-radius: 24px;
+  background: var(--surface-tint);
+  border: 1.5px solid var(--border);
+  scroll-margin-top: 84px;
+}
+
+@media (min-width: 920px) {
+  .about-section {
+    padding: 38px 34px;
+  }
+}
+
+.about-head {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 22px;
+}
+
+.about-head h2 {
+  font-size: clamp(1.38rem, 4.8vw, 1.7rem);
+  margin-bottom: 8px;
+}
+
+.about-sub {
+  margin: 0;
+  font-size: 0.98rem;
+  color: var(--ink-muted);
+  line-height: 1.55;
+}
+
+.reels-mobile-hint {
+  margin: 0 0 12px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.reels-grid {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 4px 4px 14px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.reel-card {
+  flex: 0 0 275px;
+  scroll-snap-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.reel-frame {
+  width: 267px;
+  height: 476px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1.5px solid var(--border);
+  background: #ffffff;
+  box-shadow: var(--shadow-card);
+}
+
+.reel-iframe {
+  display: block;
+  width: 267px;
+  height: 476px;
+  border: 0;
+  overflow: hidden;
+}
+
+.reel-link {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--clay-ink);
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+.reel-link:hover {
+  background: var(--clay-tint);
+  text-decoration: underline;
+}
+
+@media (min-width: 920px) {
+  .reels-mobile-hint {
+    display: none;
+  }
+  .reels-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-items: center;
+    overflow-x: visible;
+    padding: 4px 0 8px;
+  }
+  .reel-card {
+    flex: none;
+  }
+}
+
+.about-cta-row {
+  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
 
 /* Skeletons */
 .skeleton-row {
