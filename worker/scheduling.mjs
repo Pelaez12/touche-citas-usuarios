@@ -4,6 +4,11 @@ export const SALON_INFO = {
   reference: 'Frente al Metro de Aramburú · Timbre 201',
   mapsUrl: 'https://maps.app.goo.gl/52v9AbJ4YCYamjrn7',
   reviewsUrl: 'https://share.google/853a4lw4yLho9O4xB',
+  socials: {
+    facebook: 'https://www.facebook.com/ToucheSalonSpa/reels/',
+    instagram: 'https://www.instagram.com/touchesalonspa?utm_source=ig_web_button_share_sheet&evlk=ZDNlZDc0MzIxNw==',
+    tiktok: 'https://www.tiktok.com/@touchesalonspa'
+  },
   supportPhone: '992 272 521',
   supportTel: '+51992272521',
   supportWhatsappUrl: 'https://wa.me/51992272521',
