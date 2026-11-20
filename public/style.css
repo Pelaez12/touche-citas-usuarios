@@ -141,6 +141,36 @@ button {
 .ico-whatsapp { -webkit-mask-image: url(/icons/whatsapp-logo.svg); mask-image: url(/icons/whatsapp-logo.svg); }
 .ico-x { -webkit-mask-image: url(/icons/x.svg); mask-image: url(/icons/x.svg); }
 
+/* Logos oficiales a color (WhatsApp y Google Maps) */
+.brand-ico {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.brand-ico.is-sm {
+  width: 19px;
+  height: 19px;
+}
+.brand-ico.is-pin {
+  width: 17px;
+  height: 23px;
+}
+.support-top-pill .brand-ico {
+  width: 20px;
+  height: 20px;
+}
+.rail-facts .brand-ico {
+  width: 19px;
+  height: 19px;
+  margin-top: 1px;
+}
+.rail-facts .brand-ico.is-pin {
+  width: 16px;
+  height: 21px;
+}
+
 /* Header fijo superior */
 .topbar {
   position: sticky;
@@ -1572,7 +1602,13 @@ h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
 }
 .footer-loc:hover { color: var(--clay); }
 .footer-loc .ico { width: 18px; height: 18px; color: var(--clay); }
-.footer-support { margin: 0; }
+.footer-support {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
 .footer-support a { color: var(--free-ink); font-weight: 700; text-decoration: none; }
 .footer-support a:hover { text-decoration: underline; }
 .footer-review { margin: 0; }
