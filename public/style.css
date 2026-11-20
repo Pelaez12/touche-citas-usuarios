@@ -133,6 +133,7 @@ button {
 .ico-sign-out { -webkit-mask-image: url(/icons/sign-out.svg); mask-image: url(/icons/sign-out.svg); }
 .ico-map-pin { -webkit-mask-image: url(/icons/map-pin.svg); mask-image: url(/icons/map-pin.svg); }
 .ico-sparkle { -webkit-mask-image: url(/icons/sparkle.svg); mask-image: url(/icons/sparkle.svg); }
+.ico-star { -webkit-mask-image: url(/icons/star.svg); mask-image: url(/icons/star.svg); }
 .ico-sun { -webkit-mask-image: url(/icons/sun.svg); mask-image: url(/icons/sun.svg); }
 .ico-sun-horizon { -webkit-mask-image: url(/icons/sun-horizon.svg); mask-image: url(/icons/sun-horizon.svg); }
 .ico-user-plus { -webkit-mask-image: url(/icons/user-plus.svg); mask-image: url(/icons/user-plus.svg); }
@@ -611,6 +612,27 @@ button {
 .whatsapp-btn.full-btn { width: 100%; }
 .whatsapp-btn .ico { width: 20px; height: 20px; }
 
+.review-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1.5px solid var(--notice-border);
+  border-radius: 14px;
+  background: var(--notice-bg);
+  color: var(--notice-ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color var(--t-quick) var(--ease), border-color var(--t-quick) var(--ease), transform var(--t-quick) var(--ease);
+}
+.review-btn:hover { background: #fbead3; border-color: #c68c3e; }
+.review-btn:active { transform: scale(0.975); }
+.review-btn.full-btn { width: 100%; }
+.review-btn .ico { width: 20px; height: 20px; color: #9c6212; }
+
 /* ==================== TARJETA CALENDLY (CON SESIÓN INICIADA) ==================== */
 .calendly-card {
   width: 100%;
@@ -751,6 +773,12 @@ button {
   text-decoration: none;
 }
 .rail-support-link:hover { text-decoration: underline; }
+.rail-review-link {
+  color: var(--notice-ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+.rail-review-link:hover { text-decoration: underline; }
 
 .rail-divider {
   height: 1px;
@@ -1547,6 +1575,17 @@ h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
 .footer-support { margin: 0; }
 .footer-support a { color: var(--free-ink); font-weight: 700; text-decoration: none; }
 .footer-support a:hover { text-decoration: underline; }
+.footer-review { margin: 0; }
+.footer-review-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--notice-ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+.footer-review-link:hover { text-decoration: underline; }
+.footer-review-link .ico { width: 17px; height: 17px; color: #9c6212; }
 .footer-payments { margin: 0; }
 
 /* Soporte escalonado para movimiento reducido (WCAG 2.3.3 / C39) */
@@ -1573,7 +1612,8 @@ h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
   .slot-btn:active,
   .primary-btn:active,
   .secondary-btn:active,
-  .whatsapp-btn:active {
+  .whatsapp-btn:active,
+  .review-btn:active {
     transform: none !important;
   }
 }

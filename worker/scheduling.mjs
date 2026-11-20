@@ -3,6 +3,7 @@ export const SALON_INFO = {
   address: 'Calle Las Tiendas 261, Dpto. 201, Surquillo',
   reference: 'Frente al Metro de Aramburú · Timbre 201',
   mapsUrl: 'https://maps.app.goo.gl/52v9AbJ4YCYamjrn7',
+  reviewsUrl: 'https://share.google/853a4lw4yLho9O4xB',
   supportPhone: '992 272 521',
   supportTel: '+51992272521',
   supportWhatsappUrl: 'https://wa.me/51992272521',
