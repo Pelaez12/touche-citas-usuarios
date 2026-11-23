@@ -494,6 +494,36 @@ async function enterBookingWorkspace(client, upcomingAppointments = [], toastMsg
   window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
 }
 
+const CATEGORY_EMOJIS = {
+  COLOR: '🎨',
+  CORTE: '✂️',
+  TRATAMIENTO: '💆‍♀️',
+  'QUÍMICO': '✨',
+  PEINADO: '💇‍♀️',
+  'MANOS / PIES': '💅',
+  DEPILACION: '🌿',
+  'ASESORÍA': '💬'
+};
+
+function jumpToStep(targetStep) {
+  if (targetStep === 1) {
+    reopenServicePicker();
+  } else if (targetStep === 2 && state.selectedService) {
+    const eligible = getEligibleStaffFor(state.selectedService.id);
+    if (eligible.length <= 1) reopenServicePicker();
+    else reopenStaffPicker();
+  } else if (targetStep === 3 && state.selectedService && state.staffChosen) {
+    state.selectedDate = null;
+    state.selectedSlot = null;
+    updateProgressAndRail();
+    scrollToEl($('booking-workspace'));
+  } else if (targetStep === 4 && state.selectedService && state.staffChosen && state.selectedDate) {
+    state.selectedSlot = null;
+    updateProgressAndRail();
+    scrollToEl($('booking-workspace'));
+  }
+}
+
 function updateProgressAndRail() {
   let step = 1;
   if (state.bookingResult) step = 6;
@@ -507,6 +537,56 @@ function updateProgressAndRail() {
   $('progress-track').setAttribute('aria-valuenow', String(Math.min(step, 5)));
   $('progress-fill').className = `progress-fill is-step-${step}`;
 
+  // Show ONLY the active step pane inside the Canva-style workspace for zero clutter
+  if (!state.bookingResult) {
+    $('sec-service').hidden = step !== 1;
+    $('sec-staff').hidden = step !== 2;
+    $('sec-date').hidden = step !== 3;
+    $('sec-time').hidden = step !== 4;
+    $('sec-details').hidden = step !== 5;
+  }
+
+  // Update visual top stepper bar
+  const doneFlags = {
+    1: !!state.selectedService,
+    2: state.staffChosen,
+    3: !!state.selectedDate,
+    4: !!state.selectedSlot,
+    5: !!state.bookingResult
+  };
+  for (let i = 1; i <= 5; i++) {
+    const node = $(`stepper-${i}`);
+    if (!node) continue;
+    const isCurrent = step === i;
+    const isDone = doneFlags[i] && step > i;
+    node.classList.toggle('is-current', isCurrent);
+    node.classList.toggle('is-done', isDone);
+    node.disabled = i > step && !doneFlags[i - 1];
+    const numEl = node.querySelector('.stepper-num');
+    if (numEl) numEl.textContent = isDone ? '✓' : String(i);
+  }
+
+  // Update compact picks summary strip above active pane (steps 2..5)
+  const picksStrip = $('canvas-picks-strip');
+  if (picksStrip) {
+    const chips = [];
+    if (state.selectedService && step > 1) {
+      chips.push(`<button type="button" class="pick-chip" data-jump-step="1"><span>✓ ${escapeHtml(state.selectedService.name)}</span><small>Cambiar</small></button>`);
+    }
+    if (state.staffChosen && step > 2) {
+      const sLabel = state.selectedStaff ? state.selectedStaff.displayName : 'Primera disponible';
+      chips.push(`<button type="button" class="pick-chip" data-jump-step="2"><span>✓ ${escapeHtml(sLabel)}</span><small>Cambiar</small></button>`);
+    }
+    if (state.selectedDate && step > 3) {
+      chips.push(`<button type="button" class="pick-chip" data-jump-step="3"><span>✓ ${escapeHtml(formatDateShort(state.selectedDate))}</span><small>Cambiar</small></button>`);
+    }
+    if (state.selectedSlot && step > 4) {
+      chips.push(`<button type="button" class="pick-chip" data-jump-step="4"><span>✓ ${escapeHtml(formatTime12(state.selectedSlot.time))}</span><small>Cambiar</small></button>`);
+    }
+    picksStrip.innerHTML = chips.join('');
+    picksStrip.hidden = chips.length === 0;
+  }
+
   $('badge-step-1').classList.toggle('is-done', !!state.selectedService);
   $('badge-step-2').classList.toggle('is-done', state.staffChosen);
   $('badge-step-3').classList.toggle('is-done', !!state.selectedDate);
@@ -514,6 +594,7 @@ function updateProgressAndRail() {
 
   const svc = state.selectedService;
   $('rail-item-service').classList.toggle('is-done', !!svc);
+  $('rail-item-service').classList.toggle('is-active', step === 1);
   if (svc) {
     const p = formatPrice(svc);
     $('rail-val-service').textContent = `${svc.name} (${p.label})`;
@@ -530,14 +611,17 @@ function updateProgressAndRail() {
   }
 
   $('rail-item-staff').classList.toggle('is-done', state.staffChosen);
+  $('rail-item-staff').classList.toggle('is-active', step === 2);
   $('rail-val-staff').textContent = state.staffChosen
     ? (state.selectedStaff ? state.selectedStaff.displayName : 'Primera especialista disponible')
     : 'Por elegir';
 
   $('rail-item-date').classList.toggle('is-done', !!state.selectedDate);
+  $('rail-item-date').classList.toggle('is-active', step === 3);
   $('rail-val-date').textContent = state.selectedDate ? formatDateShort(state.selectedDate) : 'Por elegir';
 
   $('rail-item-time').classList.toggle('is-done', !!state.selectedSlot);
+  $('rail-item-time').classList.toggle('is-active', step === 4 || step === 5);
   $('rail-val-time').textContent = state.selectedSlot
     ? `${formatTime12(state.selectedSlot.time)} – ${formatTime12(state.selectedSlot.endTime)}`
     : 'Por elegir';
@@ -554,8 +638,11 @@ function renderCategories() {
       data-category="${escapeHtml(c.code)}"
       aria-pressed="${state.activeCategory === c.code ? 'true' : 'false'}"
     >
-      <span class="cat-card-title">${escapeHtml(c.label)}</span>
-      <span class="cat-card-count">${c.count} ${c.count === 1 ? 'opción' : 'opciones'}</span>
+      <span class="cat-card-emoji" aria-hidden="true">${CATEGORY_EMOJIS[c.code] || '✨'}</span>
+      <span class="cat-card-body">
+        <span class="cat-card-title">${escapeHtml(c.label)}</span>
+        <span class="cat-card-count">${c.count} ${c.count === 1 ? 'opción' : 'opciones'}</span>
+      </span>
     </button>
   `).join('');
 }
@@ -673,10 +760,10 @@ function selectService(serviceId) {
 
   const eligible = getEligibleStaffFor(svc.id);
   if (eligible.length === 1) {
-    selectStaff(eligible[0].id, { autoScrollTarget: $('service-price-alert') });
+    selectStaff(eligible[0].id);
   } else {
-    $('sec-staff').hidden = false;
-    scrollToEl($('service-price-alert'));
+    updateProgressAndRail();
+    scrollToEl($('booking-workspace'));
   }
 }
 
@@ -757,7 +844,7 @@ async function selectStaff(staffId, { autoScrollTarget = null } = {}) {
 
   const targetMonth = state.catalog.today.slice(0, 7);
   await loadCalendarMonth(targetMonth);
-  scrollToEl(autoScrollTarget || $('sec-date'));
+  scrollToEl(autoScrollTarget || $('booking-workspace'));
 }
 
 function reopenStaffPicker() {
@@ -880,7 +967,7 @@ async function selectDate(date) {
   }
 
   renderSlots(data);
-  scrollToEl($('sec-time'));
+  scrollToEl($('booking-workspace'));
 }
 
 function renderSlots(data) {
@@ -905,7 +992,7 @@ function renderSlots(data) {
       state.daySlotsCache.clear();
       selectDate(data.date);
     });
-    $('pick-other-day-btn')?.addEventListener('click', () => scrollToEl($('sec-date')));
+    $('pick-other-day-btn')?.addEventListener('click', () => jumpToStep(3));
     return;
   }
 
@@ -952,7 +1039,7 @@ function selectTimeSlot(time, endTime) {
   renderFinalDetails();
   $('sec-details').hidden = false;
   updateProgressAndRail();
-  scrollToEl($('sec-details'));
+  scrollToEl($('booking-workspace'));
 }
 
 function renderFinalDetails() {
@@ -1247,6 +1334,10 @@ function bindEvents() {
   // Booking workspace events
   $('change-service-btn').addEventListener('click', () => reopenServicePicker());
   $('change-staff-btn').addEventListener('click', () => reopenStaffPicker());
+  $('back-to-service-btn')?.addEventListener('click', () => jumpToStep(1));
+  $('back-to-staff-btn')?.addEventListener('click', () => jumpToStep(2));
+  $('back-to-date-btn')?.addEventListener('click', () => jumpToStep(3));
+  $('back-to-time-btn')?.addEventListener('click', () => jumpToStep(4));
   $('any-staff-btn').addEventListener('click', () => selectStaff(null));
 
   $('close-category-btn').addEventListener('click', () => {
@@ -1327,9 +1418,25 @@ function bindEvents() {
       return;
     }
 
+    const jumpBtn = e.target.closest('[data-jump-step]');
+    if (jumpBtn && !jumpBtn.disabled) {
+      jumpToStep(Number(jumpBtn.dataset.jumpStep));
+      return;
+    }
+
     const slotBtn = e.target.closest('.slot-btn');
     if (slotBtn) {
       selectTimeSlot(slotBtn.dataset.time, slotBtn.dataset.endTime);
+    }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const jumpEl = e.target.closest('li[data-jump-step]');
+      if (jumpEl) {
+        e.preventDefault();
+        jumpToStep(Number(jumpEl.dataset.jumpStep));
+      }
     }
   });
 

@@ -1917,3 +1917,455 @@ h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
 }
 
 @keyframes fadeOnly { from { opacity: 0; } to { opacity: 1; } }
+
+/* ==========================================================================
+   PANEL / CANVAS ESTILO CANVA — PORTAL ULTRA-SIMPLE PARA PERSONAS MAYORES
+   Un paso enfocado a la vez, tarjetas blancas limpias sobre lienzo suave,
+   tipografía amplia, alto contraste y botones grandes (>=52px - 68px).
+   ========================================================================== */
+html, body {
+  background: #f5f0eb;
+  font-size: 16.5px;
+  overflow-x: clip;
+  max-width: 100%;
+}
+.page-wrap, .canvas-workspace, .flow-column {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.topbar {
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 2px 12px rgba(44, 40, 38, 0.05);
+}
+
+.nav-pill, .support-top-pill, .reset-top-btn {
+  min-height: 44px;
+  padding: 0 15px;
+  font-size: 0.9rem;
+}
+
+.canvas-panel,
+.gate-card {
+  background: #ffffff;
+  border: 2px solid #e4d6ca;
+  border-radius: 26px;
+  box-shadow: 0 4px 10px rgba(44, 40, 38, 0.04), 0 18px 42px rgba(62, 46, 36, 0.08);
+}
+
+.canvas-eyebrow,
+.canvas-step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  margin-bottom: 12px;
+  border-radius: 999px;
+  background: var(--clay-tint);
+  color: var(--clay-ink);
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.choice-step-tag {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--clay-ink);
+  margin-bottom: 2px;
+}
+
+.big-choice-btn {
+  min-height: 100px;
+  padding: 20px 18px;
+  border-radius: 20px;
+  border-width: 2px;
+  gap: 16px;
+}
+
+.big-choice-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+}
+.big-choice-icon .ico {
+  width: 26px;
+  height: 26px;
+}
+
+.big-choice-title {
+  font-size: 1.15rem;
+}
+.big-choice-desc {
+  font-size: 0.96rem;
+  color: #4f4742;
+}
+
+.senior-tall-btn {
+  min-height: 58px;
+  font-size: 1.02rem;
+}
+
+/* Sub-paneles paso a paso dentro de formularios de cuenta */
+.form-step-panel {
+  background: #fbf7f3;
+  border: 2px solid #e7d9ce;
+  border-radius: 18px;
+  padding: 18px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e8dcd2;
+  color: var(--ink);
+  font-size: 1.02rem;
+}
+
+.form-step-num {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--clay);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.field label {
+  font-size: 1rem;
+  color: #241f1d;
+}
+.field input,
+.field textarea {
+  min-height: 58px;
+  border-width: 2px;
+  font-size: 1.08rem;
+}
+
+.back-link-btn {
+  min-height: 48px;
+  padding: 0 16px 0 10px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 14px;
+  background: #fbf7f3;
+  color: var(--clay-ink);
+  font-size: 0.98rem;
+  margin-bottom: 16px;
+}
+.back-link-btn:hover {
+  background: var(--clay-tint);
+  border-color: var(--clay);
+}
+
+/* Workspace Canva de 1 paso enfocado a la vez */
+.canvas-workspace {
+  max-width: 680px;
+  scroll-margin-top: 84px;
+}
+@media (min-width: 920px) {
+  .canvas-workspace {
+    max-width: 1060px;
+    grid-template-columns: 330px minmax(0, 1fr);
+    border: 2px solid #e4d6ca;
+    border-radius: 26px;
+  }
+}
+
+@media (max-width: 919px) {
+  .canvas-workspace .flow-column {
+    background: #ffffff;
+    border: 2px solid #e4d6ca;
+    border-radius: 24px;
+    padding: 20px 18px 28px;
+    box-shadow: var(--shadow-card);
+  }
+}
+
+/* Barra superior visual de pasos estilo Canva */
+.canvas-stepper {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 8px;
+  border-radius: 18px;
+  background: #f6f0ea;
+  border: 1.5px solid #e6d8cc;
+}
+
+.stepper-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 58px;
+  padding: 8px 4px;
+  border: 2px solid transparent;
+  border-radius: 13px;
+  background: transparent;
+  color: #6b615b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+  transition: background-color var(--t-quick) var(--ease), border-color var(--t-quick) var(--ease), color var(--t-quick) var(--ease);
+}
+.stepper-node:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.stepper-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1.5px solid #d5c5b7;
+  color: #5b524c;
+  font-size: 0.84rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.stepper-txt {
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.stepper-node.is-current {
+  background: #ffffff;
+  border-color: var(--clay);
+  color: var(--clay-ink);
+  box-shadow: 0 2px 8px rgba(150, 80, 74, 0.14);
+}
+.stepper-node.is-current .stepper-num {
+  background: var(--clay);
+  border-color: var(--clay);
+  color: #ffffff;
+}
+.stepper-node.is-done {
+  background: #eef7f1;
+  border-color: #a6cfb5;
+  color: var(--free-ink);
+}
+.stepper-node.is-done:hover:not(:disabled) {
+  background: #dff0e5;
+}
+.stepper-node.is-done .stepper-num {
+  background: var(--free-ink);
+  border-color: var(--free-ink);
+  color: #ffffff;
+}
+
+@media (max-width: 480px) {
+  .canvas-stepper {
+    gap: 4px;
+    padding: 5px;
+  }
+  .stepper-node {
+    min-height: 52px;
+    padding: 6px 2px;
+    font-size: 0.67rem;
+  }
+  .stepper-num {
+    width: 24px;
+    height: 24px;
+    font-size: 0.78rem;
+  }
+}
+
+/* Resumen compacto de elecciones previas con 1 toque para cambiar */
+.canvas-picks-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.canvas-picks-strip[hidden] { display: none; }
+
+.pick-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid #a6cfb5;
+  background: #eef7f1;
+  color: var(--free-ink);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.pick-chip small {
+  font-size: 0.76rem;
+  color: var(--clay-ink);
+  background: #ffffff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #dcc4bc;
+}
+.pick-chip:hover {
+  border-color: var(--clay);
+  background: #ffffff;
+}
+
+/* Rail interactivo */
+.rail-item[data-jump-step] {
+  padding: 10px 12px;
+  margin: -4px -12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background-color var(--t-quick) var(--ease);
+}
+.rail-item[data-jump-step]:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+.rail-item.is-active {
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(44, 40, 38, 0.06);
+}
+.rail-item.is-active .rail-num {
+  border-color: var(--clay);
+  color: var(--clay);
+}
+.rail-item.is-done .rail-num {
+  background: var(--free-ink);
+  border-color: var(--free-ink);
+}
+
+/* Panel de paso enfocado */
+.canvas-step-pane {
+  padding-top: 4px !important;
+  margin-top: 0 !important;
+  border-top: none !important;
+  animation: none !important;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.step-kicker {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--clay-ink);
+  margin-bottom: 2px;
+}
+
+.step-badge {
+  width: 42px;
+  height: 42px;
+  font-size: 1.1rem;
+}
+
+/* Tarjetas visuales de categorías con ícono */
+.category-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 560px) {
+  .category-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+}
+.cat-card {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 82px;
+  padding: 16px;
+  border-radius: 18px;
+  border-width: 2px;
+}
+.cat-card-emoji {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: #f9efe8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+.cat-card.is-active .cat-card-emoji {
+  background: rgba(255, 255, 255, 0.22);
+}
+.cat-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.cat-card-title {
+  font-size: 1.04rem;
+}
+.cat-card-count {
+  font-size: 0.86rem;
+}
+
+/* Filas de servicios, especialistas, calendario y horarios aún más claros */
+.service-row,
+.staff-row {
+  min-height: 76px;
+  padding: 18px 16px;
+}
+.service-row-name {
+  font-size: 1.08rem;
+}
+.service-price {
+  font-size: 1rem;
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: #fbf5f0;
+}
+.service-price.is-free {
+  background: var(--free-bg);
+}
+
+.cal-cell {
+  max-width: 52px;
+  font-size: 1.05rem;
+}
+.cal-nav-btn {
+  width: 52px;
+  height: 52px;
+}
+.slot-btn {
+  min-height: 60px;
+  font-size: 1.08rem;
+  border-width: 2px;
+  border-radius: 15px;
+}
+
+.confirm-submit-btn {
+  min-height: 64px;
+  font-size: 1.14rem;
+  border-radius: 16px;
+}
+
+.about-section,
+.social-section {
+  background: #ffffff;
+  border: 2px solid #e4d6ca;
+  box-shadow: var(--shadow-card);
+}
+
