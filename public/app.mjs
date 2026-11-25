@@ -6,24 +6,29 @@ const SALON_WA = 'https://wa.me/51986732957';
 const SALON_PHONE_DISPLAY = '986 732 957';
 const VIP_CLUB_URL = 'https://chat.whatsapp.com/FOmwXgSPb5u4YLbK5ZiXai?s=sh&p=a&iam=2';
 
+const AUTO_ADVANCE_DATA_MS = 650;
+const AUTO_ADVANCE_SLOT_MS = 260;
+const PERU_MOBILE_DIGITS = 9;
+const PERU_DNI_DIGITS = 8;
+
 const STEP_LABELS = {
   1: 'Paso 1 de 4 · Servicios',
   2: 'Paso 2 de 4 · Tus datos',
   3: 'Paso 3 de 4 · Día y hora',
   4: 'Paso 4 de 4 · Confirmar',
-  5: '¡Cita registrada!'
+  5: 'Cita registrada'
 };
 
-const CATEGORY_EMOJIS = {
-  COLOR: '🎨',
-  CORTE: '✂️',
-  TRATAMIENTO: '💆‍♀️',
-  'QUÍMICO': '✨',
-  PEINADO: '💇‍♀️',
-  'MANOS / PIES': '💅',
-  MAQUILLAJE: '💄',
-  DEPILACION: '🌿',
-  'ASESORÍA': '💬'
+const CATEGORY_ICONS = {
+  COLOR: 'ico-palette',
+  CORTE: 'ico-scissors',
+  TRATAMIENTO: 'ico-drop',
+  'QUÍMICO': 'ico-sparkle',
+  PEINADO: 'ico-comb',
+  'MANOS / PIES': 'ico-diamond',
+  MAQUILLAJE: 'ico-brush',
+  DEPILACION: 'ico-leaf',
+  'ASESORÍA': 'ico-chat-circle'
 };
 
 const state = {
@@ -34,6 +39,8 @@ const state = {
   gateView: 'welcome',
   claimTarget: null,
   claimSearchTimer: null,
+  autoAdvanceTimer: null,
+  editingBirthday: false,
   claimSearchSeq: 0,
   calendarSeq: 0,
   slotsSeq: 0,
@@ -55,8 +62,8 @@ const state = {
 
 const $ = id => document.getElementById(id);
 
-function escapeHtml(str) {
-  return String(str ?? '')
+function escapeHtml(value) {
+  return String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -86,7 +93,7 @@ function scrollToEl(el, { focusEl = null } = {}) {
     if (focusEl) {
       setTimeout(() => {
         try { focusEl.focus({ preventScroll: true }); } catch {}
-      }, prefersReducedMotion() ? 0 : 260);
+      }, prefersReducedMotion() ? 0 : 240);
     }
   });
 }
@@ -98,8 +105,7 @@ function formatDuration(min, max) {
     const rem = m % 60;
     return rem ? `${h} h ${rem} min` : `${h} h`;
   };
-  if (max && max > min) return `${fmt(min)} – ${fmt(max)}`;
-  return fmt(min);
+  return max && max > min ? `${fmt(min)} – ${fmt(max)}` : fmt(min);
 }
 
 function formatTime12(hhmm) {
@@ -112,18 +118,12 @@ function formatTime12(hhmm) {
 
 function formatDateLong(ymd) {
   const d = new Date(ymd + 'T12:00:00Z');
-  const wk = WEEKDAY_NAMES_LONG[d.getUTCDay()];
-  const day = d.getUTCDate();
-  const mon = MONTH_NAMES[d.getUTCMonth()];
-  return `${wk} ${day} de ${mon}`;
+  return `${WEEKDAY_NAMES_LONG[d.getUTCDay()]} ${d.getUTCDate()} de ${MONTH_NAMES[d.getUTCMonth()]}`;
 }
 
 function formatDateShort(ymd) {
   const d = new Date(ymd + 'T12:00:00Z');
-  const wk = WEEKDAY_NAMES_SHORT[d.getUTCDay()];
-  const day = d.getUTCDate();
-  const mon = MONTH_NAMES[d.getUTCMonth()].slice(0, 3);
-  return `${wk} ${day} ${mon}`;
+  return `${WEEKDAY_NAMES_SHORT[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()].slice(0, 3)}`;
 }
 
 function formatMonthTitle(ym) {
@@ -141,6 +141,10 @@ function firstNameOf(fullName) {
   return String(fullName || '').trim().split(/\s+/)[0] || 'Clienta';
 }
 
+function digitsOnly(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
 function activePersonInfo() {
   if (state.client) {
     return {
@@ -152,6 +156,12 @@ function activePersonInfo() {
     };
   }
   return { ...state.guestData, email: '' };
+}
+
+function isVipClientReady(client) {
+  if (!client) return false;
+  const phoneDigits = digitsOnly(client.phone);
+  return String(client.name || '').trim().length >= 2 && phoneDigits.length >= 7;
 }
 
 async function fetchJson(url, options = {}) {
@@ -175,7 +185,7 @@ function showWelcomeToast(message) {
   clearTimeout(window.__welcomeToastTimer);
   window.__welcomeToastTimer = setTimeout(() => {
     $('welcome-toast').hidden = true;
-  }, 6000);
+  }, 5500);
 }
 
 function setFieldError(inputId, errId, msg) {
@@ -209,18 +219,29 @@ function showBoxError(boxId, textId, msg) {
   scrollToEl(el);
 }
 
-/* ==================== PANEL OPCIONAL DE CUENTA (GATE) ==================== */
+function setGuidanceBar(barId, textId, icoId, { ready, text }) {
+  const bar = $(barId);
+  const txt = $(textId);
+  const ico = icoId ? $(icoId) : null;
+  if (!bar || !txt) return;
+  bar.classList.toggle('is-ready', !!ready);
+  bar.classList.toggle('is-missing', !ready);
+  txt.textContent = text;
+  if (ico) {
+    ico.className = ready ? 'ico ico-check-circle' : 'ico ico-info';
+  }
+}
+
+/* ==================== PANEL OPCIONAL DE CUENTA (CLIENTAS VIP) ==================== */
 function openAccountGate(viewName = 'welcome', { prefillName = '', fromNotFound = false } = {}) {
+  cancelStep2AutoAdvance();
   state.gateOpen = true;
   state.gateView = viewName;
   $('gate-shell').hidden = false;
   $('booking-workspace').hidden = true;
   $('sec-confirmation').hidden = true;
-  $('step-indicator').hidden = true;
-  $('progress-track').hidden = true;
 
-  const views = ['welcome', 'claim-search', 'claim-complete', 'register', 'login'];
-  for (const v of views) {
+  for (const v of ['welcome', 'claim-search', 'claim-complete', 'register', 'login']) {
     $(`view-${v}`).hidden = v !== viewName;
   }
 
@@ -228,8 +249,8 @@ function openAccountGate(viewName = 'welcome', { prefillName = '', fromNotFound 
     setTimeout(() => $('claim-name-search')?.focus(), 80);
   } else if (viewName === 'register') {
     $('register-heading').textContent = fromNotFound
-      ? 'Te agregamos como clienta de Touché'
-      : 'Crea tu cuenta de clienta Touché';
+      ? 'Te agregamos como Clienta VIP Touché'
+      : 'Crea tu cuenta de Clienta VIP';
     $('register-sub').textContent = fromNotFound
       ? 'Completa tus datos aquí para crear tu ficha y tu acceso.'
       : 'Solo te pedimos estos datos una vez. Así podrás reservar siempre en segundos.';
@@ -261,8 +282,6 @@ function closeAccountGate() {
     $('sec-confirmation').hidden = true;
     $('booking-workspace').hidden = false;
   }
-  $('step-indicator').hidden = false;
-  $('progress-track').hidden = false;
   updateProgressAndRail();
   window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
 }
@@ -316,10 +335,9 @@ async function selectUnclaimedName(clientId) {
     $('claim-phone').value = state.guestData.phone || '';
     $('claim-dni').value = state.guestData.dni || '';
     $('claim-birthday').value = state.guestData.birthday || '';
-    setFieldError('claim-email', 'err-claim-email', '');
-    setFieldError('claim-password', 'err-claim-password', '');
-    setFieldError('claim-phone', 'err-claim-phone', '');
-    setFieldError('claim-dni', 'err-claim-dni', '');
+    for (const [inp, err] of [['claim-email', 'err-claim-email'], ['claim-password', 'err-claim-password'], ['claim-phone', 'err-claim-phone'], ['claim-dni', 'err-claim-dni']]) {
+      setFieldError(inp, err, '');
+    }
     openAccountGate('claim-complete');
   } catch (err) {
     $('claim-results-wrap').innerHTML = `<p class="claim-hint">${escapeHtml(err.message)}</p>`;
@@ -333,7 +351,11 @@ function applyAuthenticatedClient(client, upcomingAppointments = [], toastMsg = 
   state.dataConfirmed = true;
   renderClientProfileBars();
   if (state.gateOpen) closeAccountGate();
-  else updateProgressAndRail();
+  if (state.selectedService && state.activeStep === 2) {
+    goToStep(3);
+  } else {
+    updateProgressAndRail();
+  }
   if (toastMsg) showWelcomeToast(toastMsg);
 }
 
@@ -341,36 +363,18 @@ async function handleClaimSubmit(event) {
   event.preventDefault();
   if (state.submitting || !state.claimTarget) return;
   $('claim-error').hidden = true;
-  setFieldError('claim-email', 'err-claim-email', '');
-  setFieldError('claim-password', 'err-claim-password', '');
-  setFieldError('claim-phone', 'err-claim-phone', '');
-  setFieldError('claim-dni', 'err-claim-dni', '');
 
   const email = $('claim-email').value.trim();
   const password = $('claim-password').value;
   const phone = $('claim-phone').value.trim();
-  const dni = $('claim-dni').value.replace(/\D/g, '').slice(0, 8);
+  const dni = digitsOnly($('claim-dni').value).slice(0, PERU_DNI_DIGITS);
   const birthday = $('claim-birthday').value.trim();
 
-  if (!email.includes('@')) {
-    setFieldError('claim-email', 'err-claim-email', 'Ingresa un correo válido (ej. tu@correo.com).');
-    $('claim-email').focus();
-    return;
-  }
-  if (password.length < 6) {
-    setFieldError('claim-password', 'err-claim-password', 'Crea una contraseña de al menos 6 caracteres.');
-    $('claim-password').focus();
-    return;
-  }
-  if (phone.replace(/\D/g, '').length < 7) {
-    setFieldError('claim-phone', 'err-claim-phone', 'Ingresa un celular válido (ej. 987 654 321).');
-    $('claim-phone').focus();
-    return;
-  }
-  if (state.claimTarget.needsDni && !/^\d{8}$/.test(dni)) {
-    setFieldError('claim-dni', 'err-claim-dni', 'Ingresa tu DNI de 8 números.');
-    $('claim-dni').focus();
-    return;
+  if (!email.includes('@')) return setFieldError('claim-email', 'err-claim-email', 'Ingresa un correo válido (ej. tu@correo.com).'), $('claim-email').focus();
+  if (password.length < 6) return setFieldError('claim-password', 'err-claim-password', 'Crea una contraseña de al menos 6 caracteres.'), $('claim-password').focus();
+  if (digitsOnly(phone).length < 7) return setFieldError('claim-phone', 'err-claim-phone', 'Ingresa un celular válido (ej. 987 654 321).'), $('claim-phone').focus();
+  if (state.claimTarget.needsDni && dni.length !== PERU_DNI_DIGITS) {
+    return setFieldError('claim-dni', 'err-claim-dni', 'Ingresa tu DNI de 8 números.'), $('claim-dni').focus();
   }
 
   state.submitting = true;
@@ -388,7 +392,7 @@ async function handleClaimSubmit(event) {
         birthday
       })
     });
-    applyAuthenticatedClient(res.client, res.upcomingAppointments || [], '¡Cuenta activada! Tus datos quedaron listos para reservar.');
+    applyAuthenticatedClient(res.client, res.upcomingAppointments || [], 'Cuenta VIP activada. Tus datos quedaron listos.');
   } catch (err) {
     showBoxError('claim-error', 'claim-error-text', err.message);
   } finally {
@@ -401,44 +405,19 @@ async function handleRegisterSubmit(event) {
   event.preventDefault();
   if (state.submitting) return;
   $('reg-error').hidden = true;
-  setFieldError('reg-name', 'err-reg-name', '');
-  setFieldError('reg-email', 'err-reg-email', '');
-  setFieldError('reg-password', 'err-reg-password', '');
-  setFieldError('reg-phone', 'err-reg-phone', '');
-  setFieldError('reg-dni', 'err-reg-dni', '');
 
   const name = $('reg-name').value.trim().replace(/\s+/g, ' ');
   const email = $('reg-email').value.trim();
   const password = $('reg-password').value;
   const phone = $('reg-phone').value.trim();
-  const dni = $('reg-dni').value.replace(/\D/g, '').slice(0, 8);
+  const dni = digitsOnly($('reg-dni').value).slice(0, PERU_DNI_DIGITS);
   const birthday = $('reg-birthday').value.trim();
 
-  if (name.length < 2) {
-    setFieldError('reg-name', 'err-reg-name', 'Escribe tu nombre y apellido.');
-    $('reg-name').focus();
-    return;
-  }
-  if (phone.replace(/\D/g, '').length < 7) {
-    setFieldError('reg-phone', 'err-reg-phone', 'Ingresa un celular válido (ej. 987 654 321).');
-    $('reg-phone').focus();
-    return;
-  }
-  if (!/^\d{8}$/.test(dni)) {
-    setFieldError('reg-dni', 'err-reg-dni', 'Ingresa tu DNI de 8 números.');
-    $('reg-dni').focus();
-    return;
-  }
-  if (!email.includes('@')) {
-    setFieldError('reg-email', 'err-reg-email', 'Ingresa un correo válido (ej. tu@correo.com).');
-    $('reg-email').focus();
-    return;
-  }
-  if (password.length < 6) {
-    setFieldError('reg-password', 'err-reg-password', 'Crea una contraseña de al menos 6 caracteres.');
-    $('reg-password').focus();
-    return;
-  }
+  if (name.length < 2) return setFieldError('reg-name', 'err-reg-name', 'Escribe tu nombre y apellido.'), $('reg-name').focus();
+  if (digitsOnly(phone).length < 7) return setFieldError('reg-phone', 'err-reg-phone', 'Ingresa un celular válido (ej. 987 654 321).'), $('reg-phone').focus();
+  if (dni.length !== PERU_DNI_DIGITS) return setFieldError('reg-dni', 'err-reg-dni', 'Ingresa tu DNI de 8 números.'), $('reg-dni').focus();
+  if (!email.includes('@')) return setFieldError('reg-email', 'err-reg-email', 'Ingresa un correo válido (ej. tu@correo.com).'), $('reg-email').focus();
+  if (password.length < 6) return setFieldError('reg-password', 'err-reg-password', 'Crea una contraseña de al menos 6 caracteres.'), $('reg-password').focus();
 
   state.submitting = true;
   setFormBusy('reg-submit-btn', true, 'Crear mi cuenta y continuar', 'Creando tu cuenta...');
@@ -448,7 +427,7 @@ async function handleRegisterSubmit(event) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password, phone, dni, birthday })
     });
-    applyAuthenticatedClient(res.client, res.upcomingAppointments || [], '¡Bienvenida al Club Touché! Tu cuenta quedó guardada.');
+    applyAuthenticatedClient(res.client, res.upcomingAppointments || [], 'Bienvenida al Club VIP Touché. Tu cuenta quedó guardada.');
   } catch (err) {
     showBoxError('reg-error', 'reg-error-text', err.message);
   } finally {
@@ -477,7 +456,7 @@ async function handleLoginSubmit(event) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    applyAuthenticatedClient(res.client, res.upcomingAppointments || [], `¡Hola de nuevo, ${firstNameOf(res.client.name)}!`);
+    applyAuthenticatedClient(res.client, res.upcomingAppointments || [], `Hola de nuevo, ${firstNameOf(res.client.name)}.`);
   } catch (err) {
     showBoxError('login-error', 'login-error-text', err.message);
   } finally {
@@ -487,6 +466,7 @@ async function handleLoginSubmit(event) {
 }
 
 async function handleLogout() {
+  cancelStep2AutoAdvance();
   try {
     await fetchJson('/api/client/logout', { method: 'POST' });
   } catch {}
@@ -528,7 +508,6 @@ function renderClientProfileBars() {
     $('booking-account-name').textContent = c.name;
     $('booking-account-meta').textContent = metaText;
 
-    // Prefill advisory call inputs too
     if (!$('adv-name').value) $('adv-name').value = c.name;
     if (!$('adv-phone').value && c.phone) $('adv-phone').value = c.phone;
   } else {
@@ -551,11 +530,13 @@ function renderClientProfileBars() {
 }
 
 function goToStep(targetStep) {
+  cancelStep2AutoAdvance();
   if (targetStep === 1) {
     state.activeStep = 1;
     state.bookingResult = null;
   } else if (targetStep === 2 && state.selectedService) {
     state.activeStep = 2;
+    updateStep2Guidance({ showFieldErrors: false });
   } else if (targetStep === 3 && state.selectedService && (state.dataConfirmed || state.client)) {
     state.activeStep = 3;
     ensureScheduleLoaded();
@@ -599,27 +580,27 @@ function updateProgressAndRail() {
     node.classList.toggle('is-done', isDone);
     node.disabled = i > 1 && !doneFlags[i - 1] && i > step;
     const numEl = node.querySelector('.stepper-num');
-    if (numEl) numEl.textContent = isDone ? '✓' : String(i);
+    if (numEl) {
+      numEl.innerHTML = isDone ? '<span class="ico ico-check stepper-check" aria-hidden="true"></span>' : String(i);
+    }
   }
 
-  // Compact selected chips bar (Steps 2..4)
   const picksStrip = $('canvas-picks-strip');
   if (picksStrip) {
     const chips = [];
     if (state.selectedService && step > 1) {
-      chips.push(`<button type="button" class="pick-chip" data-jump-step="1"><span>✓ ${escapeHtml(state.selectedService.name)}</span><small>Cambiar</small></button>`);
+      chips.push(`<button type="button" class="pick-chip" data-jump-step="1"><span class="ico ico-check pick-chip-ico" aria-hidden="true"></span><span>${escapeHtml(state.selectedService.name)}</span><small>Cambiar</small></button>`);
     }
     if (hasData && step > 2) {
-      chips.push(`<button type="button" class="pick-chip" data-jump-step="2"><span>✓ ${escapeHtml(firstNameOf(person.name))}</span><small>Editar</small></button>`);
+      chips.push(`<button type="button" class="pick-chip" data-jump-step="2"><span class="ico ico-check pick-chip-ico" aria-hidden="true"></span><span>${escapeHtml(firstNameOf(person.name))}</span><small>Editar</small></button>`);
     }
     if (hasSchedule && step > 3) {
-      chips.push(`<button type="button" class="pick-chip" data-jump-step="3"><span>✓ ${escapeHtml(formatDateShort(state.selectedDate))} · ${escapeHtml(formatTime12(state.selectedSlot.time))}</span><small>Cambiar</small></button>`);
+      chips.push(`<button type="button" class="pick-chip" data-jump-step="3"><span class="ico ico-check pick-chip-ico" aria-hidden="true"></span><span>${escapeHtml(formatDateShort(state.selectedDate))} · ${escapeHtml(formatTime12(state.selectedSlot.time))}</span><small>Cambiar</small></button>`);
     }
     picksStrip.innerHTML = chips.join('');
     picksStrip.hidden = chips.length === 0;
   }
 
-  // Desktop left summary rail
   $('rail-item-service').classList.toggle('is-done', !!state.selectedService);
   $('rail-item-service').classList.toggle('is-active', step === 1);
   $('rail-val-service').textContent = state.selectedService
@@ -639,28 +620,31 @@ function updateProgressAndRail() {
   $('rail-item-account').classList.toggle('is-done', !!state.bookingResult);
   $('rail-item-account').classList.toggle('is-active', step === 4);
   $('rail-val-account').textContent = state.client
-    ? 'Cuenta activa · Confirmar'
+    ? 'Cuenta VIP activa · Confirmar'
     : 'Crear cuenta o Ahora no';
 }
 
-/* ==================== PASO 1: CATÁLOGO DE SERVICIOS (SIN PRECIOS) ==================== */
+/* ==================== PASO 1: CATÁLOGO DE SERVICIOS (100% SVG, CERO PRECIOS) ==================== */
 function renderCategories() {
   const grid = $('category-grid');
   const cats = (state.catalog?.categories || []).filter(c => c.code !== 'ASESORÍA');
-  grid.innerHTML = cats.map(c => `
-    <button
-      type="button"
-      class="cat-card${state.activeCategory === c.code ? ' is-active' : ''}"
-      data-category="${escapeHtml(c.code)}"
-      aria-pressed="${state.activeCategory === c.code ? 'true' : 'false'}"
-    >
-      <span class="cat-card-emoji" aria-hidden="true">${CATEGORY_EMOJIS[c.code] || '✨'}</span>
-      <span class="cat-card-body">
-        <span class="cat-card-title">${escapeHtml(c.label)}</span>
-        <span class="cat-card-count">${c.count} ${c.count === 1 ? 'servicio' : 'servicios'}</span>
-      </span>
-    </button>
-  `).join('');
+  grid.innerHTML = cats.map(c => {
+    const icoClass = CATEGORY_ICONS[c.code] || 'ico-sparkle';
+    return `
+      <button
+        type="button"
+        class="cat-card${state.activeCategory === c.code ? ' is-active' : ''}"
+        data-category="${escapeHtml(c.code)}"
+        aria-pressed="${state.activeCategory === c.code ? 'true' : 'false'}"
+      >
+        <span class="cat-card-ico" aria-hidden="true"><span class="ico ${icoClass}"></span></span>
+        <span class="cat-card-body">
+          <span class="cat-card-title">${escapeHtml(c.label)}</span>
+          <span class="cat-card-count">${c.count} ${c.count === 1 ? 'servicio' : 'servicios'}</span>
+        </span>
+      </button>
+    `;
+  }).join('');
 }
 
 function renderServiceOptions({ autoScroll = false } = {}) {
@@ -676,10 +660,7 @@ function renderServiceOptions({ autoScroll = false } = {}) {
 
   const services = state.catalog?.services || [];
   const filtered = services.filter(s => {
-    if (q) {
-      const hay = normalizeSearch(`${s.name} ${s.categoryLabel} ${s.category}`);
-      return hay.includes(q);
-    }
+    if (q) return normalizeSearch(`${s.name} ${s.categoryLabel} ${s.category}`).includes(q);
     return s.category === state.activeCategory;
   }).sort((a, b) => a.name.localeCompare(b.name, 'es'));
 
@@ -708,7 +689,6 @@ function renderServiceOptions({ autoScroll = false } = {}) {
       renderServiceOptions();
     });
   } else {
-    // ZERO prices shown anywhere — ONLY service name + approximate duration
     listEl.innerHTML = filtered.map(s => {
       const dur = formatDuration(s.durationMinutes, s.durationMaxMinutes);
       return `
@@ -754,18 +734,116 @@ function selectService(serviceId) {
   state.daySlotsCache.clear();
   state.monthDaysMap.clear();
 
-  // Auto-select sole eligible specialist if only 1 exists
   const eligible = getEligibleStaffFor(svc.id);
-  if (eligible.length === 1) {
-    state.selectedStaff = eligible[0];
+  if (eligible.length === 1) state.selectedStaff = eligible[0];
+
+  // Auto-skip Step 2 directly to Calendar if VIP client already has full contact info saved
+  if (isVipClientReady(state.client)) {
+    state.dataConfirmed = true;
+    showWelcomeToast(`Servicio elegido: ${svc.name}. Tus datos VIP ya están listos; elige tu día y hora.`);
+    goToStep(3);
+    return;
   }
 
   state.activeStep = 2;
+  updateStep2Guidance({ showFieldErrors: false });
   updateProgressAndRail();
-  scrollToEl($('booking-workspace'), { focusEl: state.client ? $('continue-to-schedule-btn') : $('guest-name') });
+  scrollToEl($('booking-workspace'), { focusEl: $('guest-name') });
 }
 
-/* ==================== PASO 2: TUS DATOS ==================== */
+/* ==================== PASO 2: TUS DATOS (AUTO-AVANCE + GUÍA DE FALTANTES) ==================== */
+function readGuestForm() {
+  const name = $('guest-name').value.trim().replace(/\s+/g, ' ');
+  const phone = $('guest-phone').value.trim();
+  const dni = digitsOnly($('guest-dni').value).slice(0, PERU_DNI_DIGITS);
+  const birthday = $('guest-birthday').value.trim();
+  return { name, phone, dni, birthday };
+}
+
+function getGuestMissingItems(data, { strictMobileForAuto = false } = {}) {
+  const missing = [];
+  const phoneDigits = digitsOnly(data.phone);
+  const minPhoneDigits = strictMobileForAuto ? PERU_MOBILE_DIGITS : 7;
+
+  if (data.name.length < 2) missing.push({ field: 'guest-name', err: 'err-guest-name', label: 'tu nombre y apellido', msg: 'Escribe tu nombre y apellido.' });
+  if (phoneDigits.length < minPhoneDigits) {
+    missing.push({
+      field: 'guest-phone',
+      err: 'err-guest-phone',
+      label: strictMobileForAuto ? 'tu celular (9 números)' : 'tu celular',
+      msg: 'Ingresa un celular válido (ej. 987 654 321).'
+    });
+  }
+  if (data.dni.length !== PERU_DNI_DIGITS) {
+    missing.push({ field: 'guest-dni', err: 'err-guest-dni', label: 'tu DNI (8 números)', msg: 'Ingresa tu DNI de 8 números.' });
+  }
+  return missing;
+}
+
+function cancelStep2AutoAdvance() {
+  if (state.autoAdvanceTimer) {
+    clearTimeout(state.autoAdvanceTimer);
+    state.autoAdvanceTimer = null;
+  }
+}
+
+function updateStep2Guidance({ showFieldErrors = false, allowAutoAdvance = false } = {}) {
+  if (state.client) {
+    setGuidanceBar('step2-guidance-bar', 'step2-guidance-text', 'step2-guidance-ico', {
+      ready: true,
+      text: 'Tus datos de Clienta VIP ya están listos. Toca el botón o continúa directo al calendario.'
+    });
+    return true;
+  }
+
+  const data = readGuestForm();
+  const missingForSubmit = getGuestMissingItems(data, { strictMobileForAuto: false });
+  const missingForAuto = getGuestMissingItems(data, { strictMobileForAuto: true });
+
+  for (const [inp, err] of [['guest-name', 'err-guest-name'], ['guest-phone', 'err-guest-phone'], ['guest-dni', 'err-guest-dni']]) {
+    const found = missingForSubmit.find(m => m.field === inp);
+    if (!found) setFieldError(inp, err, '');
+    else if (showFieldErrors) setFieldError(inp, err, found.msg);
+  }
+
+  if (missingForAuto.length === 0) {
+    setGuidanceBar('step2-guidance-bar', 'step2-guidance-text', 'step2-guidance-ico', {
+      ready: true,
+      text: allowAutoAdvance && !state.editingBirthday
+        ? 'Datos completos. Llevándote automáticamente a escoger día y hora...'
+        : 'Datos completos. Ya puedes elegir tu día y hora.'
+    });
+    if (allowAutoAdvance && !state.editingBirthday && state.activeStep === 2 && !state.gateOpen) {
+      cancelStep2AutoAdvance();
+      state.autoAdvanceTimer = setTimeout(() => {
+        if (state.activeStep !== 2 || state.gateOpen || state.editingBirthday) return;
+        const fresh = readGuestForm();
+        if (getGuestMissingItems(fresh, { strictMobileForAuto: true }).length === 0) {
+          commitGuestDataAndAdvance(fresh);
+        }
+      }, AUTO_ADVANCE_DATA_MS);
+    }
+    return true;
+  }
+
+  cancelStep2AutoAdvance();
+  const labels = missingForSubmit.length ? missingForSubmit.map(m => m.label) : missingForAuto.map(m => m.label);
+  setGuidanceBar('step2-guidance-bar', 'step2-guidance-text', 'step2-guidance-ico', {
+    ready: false,
+    text: `Te falta completar: ${labels.join(' · ')}. Al completar todo pasarás sola al calendario.`
+  });
+  return missingForSubmit.length === 0;
+}
+
+function commitGuestDataAndAdvance(data) {
+  cancelStep2AutoAdvance();
+  state.guestData = data;
+  state.dataConfirmed = true;
+  if (!$('adv-name').value) $('adv-name').value = data.name;
+  if (!$('adv-phone').value) $('adv-phone').value = data.phone;
+  goToStep(3);
+}
+
 function handleGuestDataSubmit(event) {
   event.preventDefault();
   if (state.client) {
@@ -773,41 +851,18 @@ function handleGuestDataSubmit(event) {
     goToStep(3);
     return;
   }
-
-  setFieldError('guest-name', 'err-guest-name', '');
-  setFieldError('guest-phone', 'err-guest-phone', '');
-  setFieldError('guest-dni', 'err-guest-dni', '');
-
-  const name = $('guest-name').value.trim().replace(/\s+/g, ' ');
-  const phone = $('guest-phone').value.trim();
-  const dni = $('guest-dni').value.replace(/\D/g, '').slice(0, 8);
-  const birthday = $('guest-birthday').value.trim();
-
-  if (name.length < 2) {
-    setFieldError('guest-name', 'err-guest-name', 'Escribe tu nombre y apellido.');
-    $('guest-name').focus();
+  const data = readGuestForm();
+  const missing = getGuestMissingItems(data, { strictMobileForAuto: false });
+  updateStep2Guidance({ showFieldErrors: true, allowAutoAdvance: false });
+  if (missing.length) {
+    $(missing[0].field)?.focus();
+    scrollToEl($('step2-guidance-bar'));
     return;
   }
-  if (phone.replace(/\D/g, '').length < 7) {
-    setFieldError('guest-phone', 'err-guest-phone', 'Ingresa un celular válido (ej. 987 654 321).');
-    $('guest-phone').focus();
-    return;
-  }
-  if (!/^\d{8}$/.test(dni)) {
-    setFieldError('guest-dni', 'err-guest-dni', 'Ingresa tu DNI de 8 números.');
-    $('guest-dni').focus();
-    return;
-  }
-
-  state.guestData = { name, phone, dni, birthday };
-  state.dataConfirmed = true;
-  if (!$('adv-name').value) $('adv-name').value = name;
-  if (!$('adv-phone').value) $('adv-phone').value = phone;
-
-  goToStep(3);
+  commitGuestDataAndAdvance(data);
 }
 
-/* ==================== PASO 3: CITA — ESPECIALISTA, CALENDARIO Y HORA ==================== */
+/* ==================== PASO 3: CALENDARIO (AVANZA AUTOMÁTICO AL TOCAR LA HORA) ==================== */
 function getEligibleStaffFor(serviceId) {
   const entries = state.catalog?.serviceEligibleStaff?.[serviceId] || [];
   const ids = new Set(entries.map(e => (typeof e === 'string' ? e : e.staffId)));
@@ -826,7 +881,7 @@ function renderStaffPills() {
   box.hidden = false;
   const currentId = state.selectedStaff?.id || '';
   const pills = [
-    `<button type="button" class="staff-chip-btn${currentId === '' ? ' is-selected' : ''}" data-pick-staff="" aria-pressed="${currentId === '' ? 'true' : 'false'}">✨ Primera disponible</button>`,
+    `<button type="button" class="staff-chip-btn${currentId === '' ? ' is-selected' : ''}" data-pick-staff="" aria-pressed="${currentId === '' ? 'true' : 'false'}"><span class="ico ico-sparkle staff-chip-ico" aria-hidden="true"></span><span>Primera disponible</span></button>`,
     ...eligible.map(m => `
       <button type="button" class="staff-chip-btn${currentId === m.id ? ' is-selected' : ''}" data-pick-staff="${escapeHtml(m.id)}" aria-pressed="${currentId === m.id ? 'true' : 'false'}">${escapeHtml(m.shortName || m.displayName)}</button>
     `)
@@ -841,8 +896,12 @@ function ensureScheduleLoaded() {
     loadCalendarMonth(targetMonth);
   }
   $('schedule-time-wrap').hidden = !state.selectedDate;
-  $('schedule-notes-wrap').hidden = !state.selectedSlot;
-  $('schedule-continue-wrap').hidden = !state.selectedSlot;
+  setGuidanceBar('step3-guidance-bar', 'step3-guidance-text', null, {
+    ready: !!state.selectedDate,
+    text: state.selectedDate
+      ? 'Ahora toca tu hora preferida abajo y pasarás directo a confirmar.'
+      : 'Toca un día disponible en el calendario y luego tu hora preferida para pasar directo a confirmar.'
+  });
 }
 
 async function switchScheduleStaff(staffId) {
@@ -852,12 +911,9 @@ async function switchScheduleStaff(staffId) {
   state.daySlotsCache.clear();
   state.monthDaysMap.clear();
   $('schedule-time-wrap').hidden = true;
-  $('schedule-notes-wrap').hidden = true;
-  $('schedule-continue-wrap').hidden = true;
   renderStaffPills();
   updateProgressAndRail();
-  const targetMonth = state.catalog.today.slice(0, 7);
-  await loadCalendarMonth(targetMonth);
+  await loadCalendarMonth(state.catalog.today.slice(0, 7));
 }
 
 async function loadCalendarMonth(ym) {
@@ -873,10 +929,7 @@ async function loadCalendarMonth(ym) {
   grid.innerHTML = '<div class="skeleton-grid-placeholder" aria-label="Cargando días disponibles"></div>';
 
   try {
-    const qs = new URLSearchParams({
-      serviceId: state.selectedService.id,
-      month: ym
-    });
+    const qs = new URLSearchParams({ serviceId: state.selectedService.id, month: ym });
     if (state.selectedStaff) qs.set('staffId', state.selectedStaff.id);
     const data = await fetchJson(`/api/public/days?${qs.toString()}`);
     if (seq !== state.calendarSeq) return;
@@ -910,10 +963,8 @@ function renderCalendarGrid(days) {
   }
   const firstDow = new Date(days[0].date + 'T12:00:00Z').getUTCDay();
   const mondayOffset = (firstDow + 6) % 7;
-  let html = '';
-  for (let i = 0; i < mondayOffset; i++) {
-    html += '<span aria-hidden="true"></span>';
-  }
+  let html = '<span aria-hidden="true"></span>'.repeat(mondayOffset);
+
   for (const d of days) {
     const dayNum = Number(d.date.slice(8, 10));
     const available = !d.closed && d.availableCount > 0;
@@ -944,11 +995,12 @@ async function selectDate(date) {
   if (monthDays.length) renderCalendarGrid(monthDays);
 
   $('schedule-time-wrap').hidden = false;
-  $('schedule-notes-wrap').hidden = true;
-  $('schedule-continue-wrap').hidden = true;
-
   const label = formatDateLong(date);
   $('selected-day-banner').textContent = `Horarios libres · ${label.charAt(0).toUpperCase() + label.slice(1)}`;
+  setGuidanceBar('step3-guidance-bar', 'step3-guidance-text', null, {
+    ready: true,
+    text: 'Día elegido. Toca tu hora preferida abajo y avanzarás automáticamente al último paso.'
+  });
   updateProgressAndRail();
 
   const container = $('slots-container');
@@ -1031,13 +1083,35 @@ function selectTimeSlot(time, endTime) {
     btn.classList.toggle('is-selected', active);
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
-  $('schedule-notes-wrap').hidden = false;
-  $('schedule-continue-wrap').hidden = false;
   updateProgressAndRail();
-  scrollToEl($('schedule-continue-wrap'));
+  setTimeout(() => {
+    if (state.selectedSlot?.time === time && state.activeStep === 3) {
+      goToStep(4);
+    }
+  }, prefersReducedMotion() ? 0 : AUTO_ADVANCE_SLOT_MS);
 }
 
 /* ==================== PASO 4: CREAR CUENTA | AHORA NO Y RESERVA ==================== */
+function updateInlineAccountGuidance() {
+  const email = $('inline-acc-email').value.trim();
+  const password = $('inline-acc-password').value;
+  const missing = [];
+  if (!email.includes('@')) missing.push('tu correo electrónico');
+  if (password.length < 6) missing.push('una contraseña de 6+ caracteres');
+
+  if (!missing.length) {
+    setGuidanceBar('inline-acc-guidance-bar', 'inline-acc-guidance-text', null, {
+      ready: true,
+      text: 'Listo. Toca «Crear cuenta y confirmar cita» para terminar.'
+    });
+  } else {
+    setGuidanceBar('inline-acc-guidance-bar', 'inline-acc-guidance-text', null, {
+      ready: false,
+      text: `Te falta completar: ${missing.join(' y ')}.`
+    });
+  }
+}
+
 function renderAccountChoiceStep() {
   const svc = state.selectedService;
   const person = activePersonInfo();
@@ -1045,7 +1119,6 @@ function renderAccountChoiceStep() {
   const capDate = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
   const staffLabel = state.selectedStaff ? state.selectedStaff.displayName : 'Primera especialista disponible';
 
-  // ZERO prices shown anywhere
   $('final-review-service').textContent = `Servicio: ${svc.name} (Duración aprox.: ${formatDuration(svc.durationMinutes, svc.durationMaxMinutes)})`;
   $('final-review-when').textContent = `Día y hora: ${capDate}, ${formatTime12(state.selectedSlot.time)} – ${formatTime12(state.selectedSlot.endTime)}`;
   $('final-review-staff').textContent = `Especialista: ${staffLabel}`;
@@ -1070,9 +1143,7 @@ async function submitFinalBooking({ triggerBtnId = null, busyLabel = 'Confirmand
   const createBtn = $('btn-choose-create-account');
   if (skipBtn) skipBtn.disabled = true;
   if (createBtn) createBtn.disabled = true;
-  if (triggerBtnId) {
-    setFormBusy(triggerBtnId, true, '✓ Confirmar mi cita ahora', busyLabel);
-  }
+  if (triggerBtnId) setFormBusy(triggerBtnId, true, 'Confirmar mi cita ahora', busyLabel);
 
   try {
     const person = activePersonInfo();
@@ -1118,16 +1189,12 @@ async function submitFinalBooking({ triggerBtnId = null, busyLabel = 'Confirmand
     window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   } catch (err) {
     showBoxError('form-error', 'form-error-text', err.message);
-    if (err.status === 409) {
-      state.daySlotsCache.clear();
-    }
+    if (err.status === 409) state.daySlotsCache.clear();
   } finally {
     state.submitting = false;
     if (skipBtn) skipBtn.disabled = false;
     if (createBtn) createBtn.disabled = false;
-    if (triggerBtnId) {
-      setFormBusy(triggerBtnId, false, '✓ Confirmar mi cita ahora', busyLabel);
-    }
+    if (triggerBtnId) setFormBusy(triggerBtnId, false, 'Confirmar mi cita ahora', busyLabel);
   }
 }
 
@@ -1142,17 +1209,17 @@ async function handleInlineCreateAccountAndBook(event) {
   const password = $('inline-acc-password').value;
   if (!email.includes('@')) {
     setFieldError('inline-acc-email', 'err-inline-email', 'Ingresa un correo válido (ej. tu@correo.com).');
-    $('inline-acc-email').focus();
-    return;
+    updateInlineAccountGuidance();
+    return $('inline-acc-email').focus();
   }
   if (password.length < 6) {
     setFieldError('inline-acc-password', 'err-inline-password', 'Crea una contraseña de al menos 6 caracteres.');
-    $('inline-acc-password').focus();
-    return;
+    updateInlineAccountGuidance();
+    return $('inline-acc-password').focus();
   }
 
   state.submitting = true;
-  setFormBusy('submit-create-and-book-btn', true, '✨ Crear cuenta y confirmar cita', 'Creando cuenta y reservando...');
+  setFormBusy('submit-create-and-book-btn', true, 'Crear cuenta y confirmar cita', 'Creando cuenta y reservando...');
   try {
     const res = await fetchJson('/api/client/register', {
       method: 'POST',
@@ -1173,7 +1240,7 @@ async function handleInlineCreateAccountAndBook(event) {
     await submitFinalBooking({ triggerBtnId: 'submit-create-and-book-btn', busyLabel: 'Confirmando tu cita...' });
   } catch (err) {
     state.submitting = false;
-    setFormBusy('submit-create-and-book-btn', false, '✨ Crear cuenta y confirmar cita', 'Creando cuenta y reservando...');
+    setFormBusy('submit-create-and-book-btn', false, 'Crear cuenta y confirmar cita', 'Creando cuenta y reservando...');
     showBoxError('form-error', 'form-error-text', err.message);
   }
 }
@@ -1188,13 +1255,12 @@ function buildIcsContent(b) {
   const startUtc = toCalendarUtcStamp(b.date, b.startTime);
   const endUtc = toCalendarUtcStamp(b.date, b.endTime);
   const nowUtc = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
-  const summary = `Cita Touché Hair Studio — ${b.serviceName}`;
   const location = `${b.salon.address} (${b.salon.reference})`;
   const desc = [
     `Código de reserva: ${b.bookingCode}`,
     `Servicio: ${b.serviceName}`,
     `Especialista: ${b.staffName}`,
-    `Ubicación: ${b.salon.address} (${b.salon.reference})`,
+    `Ubicación: ${location}`,
     `WhatsApp del salón: ${SALON_PHONE_DISPLAY}`,
     `Mapa: ${b.salon.mapsUrl}`
   ].join('\\n');
@@ -1210,7 +1276,7 @@ function buildIcsContent(b) {
     `DTSTAMP:${nowUtc}`,
     `DTSTART:${startUtc}`,
     `DTEND:${endUtc}`,
-    `SUMMARY:${summary}`,
+    `SUMMARY:Cita Touché Hair Studio — ${b.serviceName}`,
     `LOCATION:${location}`,
     `DESCRIPTION:${desc}`,
     'BEGIN:VALARM',
@@ -1254,12 +1320,12 @@ function renderConfirmation(b) {
   $('maps-link').href = b.salon.mapsUrl;
 
   const waText = [
-    `Hola Touché Hair Studio 💕 Quiero confirmar mi cita:`,
-    `• Código: ${b.bookingCode}`,
-    `• Clienta: ${b.clientName}`,
-    `• Servicio: ${b.serviceName}`,
-    `• Día y hora: ${capDate} a las ${formatTime12(b.startTime)}`,
-    `• Especialista: ${b.staffName}`
+    'Hola Touché Hair Studio, quiero confirmar mi cita:',
+    `- Código: ${b.bookingCode}`,
+    `- Clienta: ${b.clientName}`,
+    `- Servicio: ${b.serviceName}`,
+    `- Día y hora: ${capDate} a las ${formatTime12(b.startTime)}`,
+    `- Especialista: ${b.staffName}`
   ].join('\n');
   $('ticket-whatsapp-link').href = `${SALON_WA}?text=${encodeURIComponent(waText)}`;
   $('ticket-vip-club-link').href = b.salon?.vipClubUrl || VIP_CLUB_URL;
@@ -1268,8 +1334,7 @@ function renderConfirmation(b) {
 function downloadIcs() {
   const b = state.bookingResult;
   if (!b) return;
-  const content = buildIcsContent(b);
-  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+  const blob = new Blob([buildIcsContent(b)], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1281,6 +1346,7 @@ function downloadIcs() {
 }
 
 function resetBookingSelection() {
+  cancelStep2AutoAdvance();
   state.activeStep = 1;
   state.search = '';
   state.activeCategory = null;
@@ -1298,8 +1364,6 @@ function resetBookingSelection() {
   $('client-notes').value = '';
   $('service-options-wrap').hidden = true;
   $('schedule-time-wrap').hidden = true;
-  $('schedule-notes-wrap').hidden = true;
-  $('schedule-continue-wrap').hidden = true;
 
   if (state.catalog) {
     renderFeaturedEval();
@@ -1311,8 +1375,8 @@ function resetBookingSelection() {
 function handleQuickMessageSend() {
   const raw = ($('quick-msg-input')?.value || '').trim();
   const text = raw
-    ? `Hola Touché Hair Studio 💕 ${raw}`
-    : 'Hola Touché Hair Studio 💕 Quisiera hacer una consulta sobre sus servicios y horarios.';
+    ? `Hola Touché Hair Studio, ${raw}`
+    : 'Hola Touché Hair Studio, quisiera hacer una consulta sobre sus servicios y horarios.';
   window.open(`${SALON_WA}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
 }
 
@@ -1326,19 +1390,11 @@ async function handleAdvisorySubmit(event) {
   const phone = $('adv-phone').value.trim();
   const topic = $('adv-topic').value.trim();
 
-  if (name.length < 2) {
-    showBoxError('adv-error', 'adv-error-text', 'Escribe tu nombre para poder llamarte.');
-    $('adv-name').focus();
-    return;
-  }
-  if (phone.replace(/\D/g, '').length < 7) {
-    showBoxError('adv-error', 'adv-error-text', 'Ingresa tu número de celular (ej. 987 654 321).');
-    $('adv-phone').focus();
-    return;
-  }
+  if (name.length < 2) return showBoxError('adv-error', 'adv-error-text', 'Escribe tu nombre para poder llamarte.'), $('adv-name').focus();
+  if (digitsOnly(phone).length < 7) return showBoxError('adv-error', 'adv-error-text', 'Ingresa tu número de celular (ej. 987 654 321).'), $('adv-phone').focus();
 
   state.submitting = true;
-  setFormBusy('adv-submit-btn', true, '📞 Pedir que me llamen para asesoría', 'Enviando solicitud...');
+  setFormBusy('adv-submit-btn', true, 'Pedir que me llamen para asesoría', 'Enviando solicitud...');
   try {
     const res = await fetchJson('/api/public/advisory-request', {
       method: 'POST',
@@ -1352,7 +1408,7 @@ async function handleAdvisorySubmit(event) {
     showBoxError('adv-error', 'adv-error-text', err.message);
   } finally {
     state.submitting = false;
-    setFormBusy('adv-submit-btn', false, '📞 Pedir que me llamen para asesoría', 'Enviando solicitud...');
+    setFormBusy('adv-submit-btn', false, 'Pedir que me llamen para asesoría', 'Enviando solicitud...');
   }
 }
 
@@ -1396,15 +1452,13 @@ function bindEvents() {
     $('gate-shell').hidden = true;
     $('sec-confirmation').hidden = true;
     $('booking-workspace').hidden = false;
-    $('step-indicator').hidden = false;
-    $('progress-track').hidden = false;
     resetBookingSelection();
     renderClientProfileBars();
     updateProgressAndRail();
     window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   });
 
-  // Optional account gate triggers
+  // VIP account triggers
   $('open-login-btn').addEventListener('click', () => openAccountGate('welcome'));
   $('inline-login-trigger').addEventListener('click', () => openAccountGate('login'));
   $('step2-login-link').addEventListener('click', () => openAccountGate('login'));
@@ -1421,7 +1475,7 @@ function bindEvents() {
   $('logout-btn').addEventListener('click', () => handleLogout());
   $('mobile-logout-btn').addEventListener('click', () => handleLogout());
 
-  // Unclaimed name search (debounced)
+  // Unclaimed name search
   const claimSearch = $('claim-name-search');
   const claimClear = $('claim-search-clear');
   claimSearch.addEventListener('input', () => {
@@ -1436,31 +1490,52 @@ function bindEvents() {
     claimSearch.focus();
   });
 
-  // Clean DNI numeric fields
+  // Numeric-only DNI fields
   for (const id of ['claim-dni', 'reg-dni', 'guest-dni']) {
     $(id)?.addEventListener('input', e => {
-      const clean = e.target.value.replace(/\D/g, '').slice(0, 8);
+      const clean = digitsOnly(e.target.value).slice(0, PERU_DNI_DIGITS);
       if (e.target.value !== clean) e.target.value = clean;
     });
   }
 
-  // Account gate forms
+  // Step 2 live guidance + senior auto-advance
+  for (const id of ['guest-name', 'guest-phone', 'guest-dni']) {
+    $(id)?.addEventListener('input', () => updateStep2Guidance({ showFieldErrors: false, allowAutoAdvance: true }));
+  }
+  $('guest-birthday')?.addEventListener('focus', () => {
+    state.editingBirthday = true;
+    cancelStep2AutoAdvance();
+  });
+  $('guest-birthday')?.addEventListener('blur', () => {
+    state.editingBirthday = false;
+  });
+  $('guest-birthday')?.addEventListener('change', () => {
+    state.editingBirthday = false;
+    updateStep2Guidance({ showFieldErrors: false, allowAutoAdvance: true });
+  });
+
+  // Inline Step 4 account live guidance
+  for (const id of ['inline-acc-email', 'inline-acc-password']) {
+    $(id)?.addEventListener('input', updateInlineAccountGuidance);
+  }
+
+  // Gate forms
   $('claim-form').addEventListener('submit', handleClaimSubmit);
   $('register-form').addEventListener('submit', handleRegisterSubmit);
   $('login-form').addEventListener('submit', handleLoginSubmit);
 
-  // Booking flow forms & step buttons
+  // Flow navigation
   $('guest-data-form').addEventListener('submit', handleGuestDataSubmit);
   $('back-to-service-btn').addEventListener('click', () => goToStep(1));
   $('back-to-data-btn').addEventListener('click', () => goToStep(2));
   $('back-to-schedule-btn').addEventListener('click', () => goToStep(3));
-  $('continue-to-account-btn').addEventListener('click', () => goToStep(4));
 
-  // Step 4: Dual big buttons (CREAR CUENTA | AHORA NO)
+  // Step 4 dual big buttons (CREAR CUENTA | AHORA NO)
   $('btn-choose-create-account').addEventListener('click', () => {
     $('account-dual-actions').hidden = true;
     $('inline-create-account-form').hidden = false;
     $('form-error').hidden = true;
+    updateInlineAccountGuidance();
     setTimeout(() => $('inline-acc-email')?.focus(), 80);
   });
   $('btn-skip-account-book').addEventListener('click', () => submitFinalBooking());
@@ -1508,16 +1583,10 @@ function bindEvents() {
     }
 
     const gateBtn = e.target.closest('[data-gate-view]');
-    if (gateBtn) {
-      openAccountGate(gateBtn.dataset.gateView);
-      return;
-    }
+    if (gateBtn) return openAccountGate(gateBtn.dataset.gateView);
 
     const claimBtn = e.target.closest('[data-claim-id]');
-    if (claimBtn) {
-      selectUnclaimedName(claimBtn.dataset.claimId);
-      return;
-    }
+    if (claimBtn) return selectUnclaimedName(claimBtn.dataset.claimId);
 
     const catBtn = e.target.closest('[data-category]');
     if (catBtn) {
@@ -1531,33 +1600,19 @@ function bindEvents() {
     }
 
     const svcBtn = e.target.closest('[data-service-id]');
-    if (svcBtn) {
-      selectService(svcBtn.dataset.serviceId);
-      return;
-    }
+    if (svcBtn) return selectService(svcBtn.dataset.serviceId);
 
     const pickStaffBtn = e.target.closest('[data-pick-staff]');
-    if (pickStaffBtn) {
-      switchScheduleStaff(pickStaffBtn.dataset.pickStaff);
-      return;
-    }
+    if (pickStaffBtn) return switchScheduleStaff(pickStaffBtn.dataset.pickStaff);
 
     const calBtn = e.target.closest('[data-cal-date]');
-    if (calBtn && !calBtn.disabled) {
-      selectDate(calBtn.dataset.calDate);
-      return;
-    }
+    if (calBtn && !calBtn.disabled) return selectDate(calBtn.dataset.calDate);
 
     const jumpBtn = e.target.closest('[data-jump-step]');
-    if (jumpBtn && !jumpBtn.disabled) {
-      goToStep(Number(jumpBtn.dataset.jumpStep));
-      return;
-    }
+    if (jumpBtn && !jumpBtn.disabled) return goToStep(Number(jumpBtn.dataset.jumpStep));
 
     const slotBtn = e.target.closest('.slot-btn');
-    if (slotBtn) {
-      selectTimeSlot(slotBtn.dataset.time, slotBtn.dataset.endTime);
-    }
+    if (slotBtn) selectTimeSlot(slotBtn.dataset.time, slotBtn.dataset.endTime);
   });
 
   document.addEventListener('keydown', e => {
@@ -1577,7 +1632,6 @@ function bindEvents() {
     if (state.monthView) loadCalendarMonth(addMonths(state.monthView, 1));
   });
 
-  // Confirmation & Client Hub actions
   $('download-ics-btn').addEventListener('click', downloadIcs);
   $('quick-msg-send-btn').addEventListener('click', handleQuickMessageSend);
   $('advisory-call-form').addEventListener('submit', handleAdvisorySubmit);

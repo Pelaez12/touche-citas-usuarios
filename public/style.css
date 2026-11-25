@@ -2820,3 +2820,278 @@ html {
     margin-top: 3px;
   }
 }
+
+/* ==========================================================================
+   VIP HEADER REFINEMENT + PANEL PROGRESS + SVG ICONS + SENIOR AUTO-ADVANCE UX
+   ========================================================================== */
+[hidden] {
+  display: none !important;
+}
+
+/* Nuevos íconos SVG (100% libres de emojis) */
+.ico-star-fill { -webkit-mask-image: url(/icons/star-fill.svg); mask-image: url(/icons/star-fill.svg); }
+.ico-crown { -webkit-mask-image: url(/icons/crown.svg); mask-image: url(/icons/crown.svg); }
+.ico-palette { -webkit-mask-image: url(/icons/palette.svg); mask-image: url(/icons/palette.svg); }
+.ico-drop { -webkit-mask-image: url(/icons/drop.svg); mask-image: url(/icons/drop.svg); }
+.ico-leaf { -webkit-mask-image: url(/icons/leaf.svg); mask-image: url(/icons/leaf.svg); }
+.ico-gift { -webkit-mask-image: url(/icons/gift.svg); mask-image: url(/icons/gift.svg); }
+.ico-chat-circle { -webkit-mask-image: url(/icons/chat-circle.svg); mask-image: url(/icons/chat-circle.svg); }
+.ico-diamond { -webkit-mask-image: url(/icons/diamond.svg); mask-image: url(/icons/diamond.svg); }
+.ico-brush { -webkit-mask-image: url(/icons/brush.svg); mask-image: url(/icons/brush.svg); }
+.ico-comb { -webkit-mask-image: url(/icons/comb.svg); mask-image: url(/icons/comb.svg); }
+.ico-scissors { -webkit-mask-image: url(/icons/scissors.svg); mask-image: url(/icons/scissors.svg); }
+.ico-check-circle { -webkit-mask-image: url(/icons/check-circle.svg); mask-image: url(/icons/check-circle.svg); }
+
+/* Header horizontal limpio: Logo + Conócenos a la izquierda | Soporte + Clientas VIP a la derecha */
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.vip-top-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1.5px solid #d49d3a;
+  background: linear-gradient(135deg, #fff9ec 0%, #fce8be 100%);
+  color: #5b3700;
+  font-size: 0.9rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 3px 12px rgba(196, 138, 34, 0.22);
+  transition: transform var(--t-quick) var(--ease), box-shadow var(--t-quick) var(--ease), background-color var(--t-quick) var(--ease);
+}
+.vip-top-btn:hover {
+  background: linear-gradient(135deg, #fff3d6 0%, #f8dc9e 100%);
+  border-color: #b77e1b;
+  box-shadow: 0 5px 16px rgba(183, 126, 27, 0.3);
+  transform: translateY(-1px);
+}
+.vip-top-btn:active { transform: scale(0.975); }
+.vip-top-btn .vip-star-ico {
+  width: 18px;
+  height: 18px;
+  color: #c28011;
+}
+
+/* Progreso Paso 1 de 4 DENTRO del panel principal */
+.panel-progress-head {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.panel-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.panel-progress-hint {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.progress-track.is-panel {
+  height: 7px;
+  border-radius: 999px;
+  background: #eee3da;
+}
+.progress-track.is-panel .progress-fill {
+  border-radius: 999px;
+}
+
+/* Barra viva de guía (muestra faltantes o confirma avance automático) */
+.live-guidance-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 15px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  border: 1.5px solid #e4c69c;
+  background: #fff9f0;
+  color: #5b3b09;
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.45;
+  transition: background-color var(--t-quick) var(--ease), border-color var(--t-quick) var(--ease), color var(--t-quick) var(--ease);
+}
+.live-guidance-bar .ico {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  color: #b77614;
+}
+.live-guidance-bar.is-ready {
+  background: var(--free-bg);
+  border-color: var(--free-border);
+  color: var(--free-ink);
+}
+.live-guidance-bar.is-ready .ico {
+  color: var(--free-ink);
+}
+
+/* Íconos SVG en tarjetas de categoría, VIP, botones y hub */
+.cat-card-ico {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: #f9efe8;
+  color: var(--clay);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color var(--t-quick) var(--ease), color var(--t-quick) var(--ease);
+}
+.cat-card-ico .ico {
+  width: 24px;
+  height: 24px;
+}
+.cat-card.is-active .cat-card-ico {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.quick-vip-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.quick-vip-copy .ico {
+  width: 17px;
+  height: 17px;
+  color: #c28011;
+}
+
+.vip-mini-badge .ico {
+  width: 16px;
+  height: 16px;
+  color: #b77911;
+}
+
+.dual-btn-main {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.dual-btn-main .ico {
+  width: 18px;
+  height: 18px;
+  color: #ffe299;
+}
+
+.staff-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.staff-chip-ico {
+  width: 16px;
+  height: 16px;
+}
+
+.stepper-check {
+  width: 15px;
+  height: 15px;
+}
+.pick-chip-ico {
+  width: 15px;
+  height: 15px;
+}
+
+.rail-gold-ico {
+  color: #c28011 !important;
+}
+
+.hub-card-icon {
+  color: var(--clay);
+}
+.hub-card-icon .ico {
+  width: 26px;
+  height: 26px;
+}
+.hub-success-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.hub-success-title .ico {
+  width: 20px;
+  height: 20px;
+}
+
+.vip-perks-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.vip-perk-ico {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  color: #b77911;
+}
+
+.final-notes-field {
+  margin-top: 14px;
+}
+
+.form-step-num .ico {
+  width: 16px;
+  height: 16px;
+}
+
+/* Responsive móvil 390px: 1 sola fila impecable (Logo + Conócenos | Soporte + VIP) */
+@media (max-width: 640px) {
+  .topbar-inner {
+    min-height: 60px;
+    padding: 6px 10px;
+    gap: 6px;
+  }
+  .topbar-left {
+    gap: 8px;
+  }
+  .brand-logo { height: 21px; }
+  .brand-sub { font-size: 8.5px; letter-spacing: 0.08em; }
+  .nav-conocenos {
+    padding: 0 9px;
+    min-height: 36px;
+    font-size: 0.75rem;
+  }
+  .vip-top-btn {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 0.75rem;
+    gap: 5px;
+  }
+  .vip-top-btn .vip-star-ico {
+    width: 15px;
+    height: 15px;
+  }
+  .vip-top-label {
+    display: none;
+  }
+  .vip-top-btn::after {
+    content: 'VIP';
+    font-size: 0.76rem;
+    font-weight: 800;
+  }
+  .panel-progress-head #step-indicator {
+    display: inline-flex !important;
+  }
+  .panel-progress-hint {
+    font-size: 0.76rem;
+  }
+}

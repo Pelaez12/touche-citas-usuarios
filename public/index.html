@@ -20,13 +20,14 @@
 
   <header class="topbar" id="topbar">
     <div class="topbar-inner">
-      <a href="/" class="brand-lockup" id="brand-home-link" aria-label="Touché Hair Studio — Inicio">
-        <img class="brand-logo" src="/brand/logo.png" alt="Touché" width="112" height="36">
-        <span class="brand-sub">hair studio</span>
-      </a>
+      <div class="topbar-left">
+        <a href="/" class="brand-lockup" id="brand-home-link" aria-label="Touché Hair Studio — Inicio">
+          <img class="brand-logo" src="/brand/logo.png" alt="Touché" width="112" height="36">
+          <span class="brand-sub">hair studio</span>
+        </a>
+        <a class="nav-pill nav-conocenos" href="#sec-conocenos" id="nav-conocenos-link">Conócenos</a>
+      </div>
       <div class="topbar-right">
-        <a class="nav-pill" href="#sec-conocenos" id="nav-conocenos-link">Conócenos</a>
-        <span class="step-pill" id="step-indicator" aria-live="polite">Paso 1 de 4 · Servicio</span>
         <a
           class="support-top-pill"
           href="https://wa.me/51992272521?text=Hola%20soporte%20Touch%C3%A9%2C%20necesito%20ayuda%20con%20la%20p%C3%A1gina%20o%20mi%20cuenta"
@@ -37,18 +38,15 @@
           <img class="brand-ico" src="/icons/brand-whatsapp.svg" alt="" width="20" height="20" aria-hidden="true">
           <span class="support-top-label">Soporte · 992 272 521</span>
         </a>
-        <button type="button" class="nav-pill account-top-btn" id="open-login-btn">
-          <span class="ico ico-lock" aria-hidden="true"></span>
-          <span>Ingresar</span>
+        <button type="button" class="vip-top-btn" id="open-login-btn" aria-label="Acceso para Clientas VIP">
+          <span class="ico ico-star-fill vip-star-ico" aria-hidden="true"></span>
+          <span class="vip-top-label">Clientas VIP</span>
         </button>
         <button type="button" class="reset-top-btn" id="logout-btn" hidden>
           <span class="ico ico-sign-out" aria-hidden="true"></span>
           <span>Salir</span>
         </button>
       </div>
-    </div>
-    <div class="progress-track" role="progressbar" aria-label="Avance de tu reserva" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" id="progress-track">
-      <div class="progress-fill is-step-1" id="progress-fill"></div>
     </div>
   </header>
 
@@ -64,9 +62,8 @@
       <span id="welcome-toast-text"></span>
     </div>
 
-    <!-- ==================== PANEL OPCIONAL DE ACCESO / CUENTA CLIENTA ==================== -->
+    <!-- ==================== PANEL OPCIONAL DE ACCESO / CLIENTAS VIP ==================== -->
     <section class="gate-shell" id="gate-shell" aria-labelledby="gate-heading" hidden>
-      <!-- Vista 1: Opciones de cuenta Touché -->
       <div class="gate-card canvas-panel" id="view-welcome">
         <button type="button" class="back-link-btn" id="close-gate-btn">
           <span class="ico ico-arrow-left" aria-hidden="true"></span>
@@ -74,22 +71,22 @@
         </button>
 
         <div class="gate-head">
-          <span class="canvas-eyebrow">Club Clientas Touché · Acceso</span>
-          <h1 class="display-heading" id="gate-heading">Tu cuenta en Touché Hair Studio</h1>
+          <span class="vip-mini-badge"><span class="ico ico-star-fill" aria-hidden="true"></span><span>Clientas VIP Touché</span></span>
+          <h1 class="display-heading" id="gate-heading">Tu cuenta de Clienta VIP</h1>
           <p class="gate-sub">
-            Inicia sesión o activa tu cuenta para autocompletar tus datos y ver tus próximas citas.
+            Inicia sesión o activa tu cuenta para completar tus datos automáticamente y reservar en segundos.
           </p>
         </div>
 
         <div class="welcome-choices">
           <button type="button" class="big-choice-btn is-primary-outline" id="btn-go-login">
             <span class="big-choice-icon" aria-hidden="true">
-              <span class="ico ico-lock"></span>
+              <span class="ico ico-star-fill"></span>
             </span>
             <span class="big-choice-body">
               <span class="choice-step-tag">Ya tengo cuenta web</span>
               <strong class="big-choice-title">Iniciar sesión con mi correo</strong>
-              <span class="big-choice-desc">Entro rápido para ver mis citas y reservar en segundos.</span>
+              <span class="big-choice-desc">Entro rápido para ver mis citas y reservar sin escribir mis datos.</span>
             </span>
             <span class="ico ico-caret-right big-choice-arrow" aria-hidden="true"></span>
           </button>
@@ -101,7 +98,7 @@
             <span class="big-choice-body">
               <span class="choice-step-tag">Ya me atiendo en Touché</span>
               <strong class="big-choice-title">Buscar mi nombre y activar mi cuenta</strong>
-              <span class="big-choice-desc">Encuentro mi ficha del salón para crear mi clave.</span>
+              <span class="big-choice-desc">Encuentro mi ficha del salón para crear mi clave de acceso.</span>
             </span>
             <span class="ico ico-caret-right big-choice-arrow" aria-hidden="true"></span>
           </button>
@@ -120,7 +117,6 @@
         </div>
       </div>
 
-      <!-- Vista 2: Buscador SOLO de nombres de clientas existentes sin cuenta -->
       <div class="gate-card canvas-panel" id="view-claim-search" hidden>
         <button type="button" class="back-link-btn" data-gate-view="welcome">
           <span class="ico ico-arrow-left" aria-hidden="true"></span>
@@ -163,7 +159,6 @@
         </div>
       </div>
 
-      <!-- Vista 3: Activar acceso para ficha existente -->
       <div class="gate-card canvas-panel" id="view-claim-complete" hidden>
         <button type="button" class="back-link-btn" data-gate-view="claim-search">
           <span class="ico ico-arrow-left" aria-hidden="true"></span>
@@ -182,7 +177,7 @@
         </div>
 
         <span class="canvas-step-pill">Paso 2 de 2 · Activa tu acceso</span>
-        <h2 class="gate-title">Completa tu cuenta Touché</h2>
+        <h2 class="gate-title">Completa tu cuenta VIP</h2>
         <p class="gate-sub">
           Guarda tu acceso para futuras reservas. Tu nombre desaparecerá de la lista pública automáticamente.
         </p>
@@ -195,31 +190,14 @@
             </div>
             <div class="field">
               <label for="claim-email">Tu correo (Gmail u otro)</label>
-              <input
-                type="email"
-                id="claim-email"
-                required
-                autocomplete="email"
-                inputmode="email"
-                enterkeyhint="next"
-                placeholder="tu@correo.com"
-              >
+              <input type="email" id="claim-email" required autocomplete="email" inputmode="email" enterkeyhint="next" placeholder="tu@correo.com">
               <span class="field-error" id="err-claim-email" role="alert"></span>
             </div>
 
             <div class="field">
               <label for="claim-password">Crea una contraseña fácil de recordar</label>
               <div class="password-wrap">
-                <input
-                  type="password"
-                  id="claim-password"
-                  required
-                  minlength="6"
-                  maxlength="128"
-                  autocomplete="new-password"
-                  enterkeyhint="next"
-                  placeholder="6+ caracteres"
-                >
+                <input type="password" id="claim-password" required minlength="6" maxlength="128" autocomplete="new-password" enterkeyhint="next" placeholder="6+ caracteres">
                 <button type="button" class="toggle-pass-btn" data-toggle-pass="claim-password" aria-label="Mostrar u ocultar contraseña">Mostrar</button>
               </div>
               <span class="field-error" id="err-claim-password" role="alert"></span>
@@ -234,31 +212,13 @@
             <div class="field-grid">
               <div class="field">
                 <label for="claim-phone" id="claim-phone-label">Tu celular (WhatsApp)</label>
-                <input
-                  type="tel"
-                  id="claim-phone"
-                  required
-                  inputmode="tel"
-                  autocomplete="tel"
-                  enterkeyhint="next"
-                  placeholder="Ej. 987 654 321"
-                >
+                <input type="tel" id="claim-phone" required inputmode="tel" autocomplete="tel" enterkeyhint="next" placeholder="Ej. 987 654 321">
                 <span class="field-error" id="err-claim-phone" role="alert"></span>
               </div>
 
               <div class="field" id="claim-dni-field">
                 <label for="claim-dni">Tu DNI (8 números)</label>
-                <input
-                  type="text"
-                  id="claim-dni"
-                  required
-                  inputmode="numeric"
-                  pattern="[0-9]{8}"
-                  maxlength="8"
-                  autocomplete="off"
-                  enterkeyhint="next"
-                  placeholder="Ej. 45678912"
-                >
+                <input type="text" id="claim-dni" required inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="off" enterkeyhint="next" placeholder="Ej. 45678912">
                 <span class="field-error" id="err-claim-dni" role="alert"></span>
               </div>
             </div>
@@ -281,7 +241,6 @@
         </form>
       </div>
 
-      <!-- Vista 4: Registro de clienta nueva -->
       <div class="gate-card canvas-panel" id="view-register" hidden>
         <button type="button" class="back-link-btn" data-gate-view="welcome">
           <span class="ico ico-arrow-left" aria-hidden="true"></span>
@@ -289,7 +248,7 @@
         </button>
 
         <span class="canvas-step-pill">Registro simple · 2 bloques rápidos</span>
-        <h2 class="gate-title" id="register-heading">Crea tu cuenta de clienta Touché</h2>
+        <h2 class="gate-title" id="register-heading">Crea tu cuenta de Clienta VIP</h2>
         <p class="gate-sub" id="register-sub">
           Solo te pedimos estos datos una vez. Así podrás reservar siempre en segundos.
         </p>
@@ -302,48 +261,20 @@
             </div>
             <div class="field">
               <label for="reg-name">Tu nombre y apellido</label>
-              <input
-                type="text"
-                id="reg-name"
-                required
-                minlength="2"
-                maxlength="120"
-                autocomplete="name"
-                autocapitalize="words"
-                enterkeyhint="next"
-                placeholder="Ej. María Fernanda Torres"
-              >
+              <input type="text" id="reg-name" required minlength="2" maxlength="120" autocomplete="name" autocapitalize="words" enterkeyhint="next" placeholder="Ej. María Fernanda Torres">
               <span class="field-error" id="err-reg-name" role="alert"></span>
             </div>
 
             <div class="field-grid">
               <div class="field">
                 <label for="reg-phone">Tu celular (WhatsApp)</label>
-                <input
-                  type="tel"
-                  id="reg-phone"
-                  required
-                  inputmode="tel"
-                  autocomplete="tel"
-                  enterkeyhint="next"
-                  placeholder="Ej. 987 654 321"
-                >
+                <input type="tel" id="reg-phone" required inputmode="tel" autocomplete="tel" enterkeyhint="next" placeholder="Ej. 987 654 321">
                 <span class="field-error" id="err-reg-phone" role="alert"></span>
               </div>
 
               <div class="field">
                 <label for="reg-dni">Tu DNI (8 números)</label>
-                <input
-                  type="text"
-                  id="reg-dni"
-                  required
-                  inputmode="numeric"
-                  pattern="[0-9]{8}"
-                  maxlength="8"
-                  autocomplete="off"
-                  enterkeyhint="next"
-                  placeholder="Ej. 45678912"
-                >
+                <input type="text" id="reg-dni" required inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="off" enterkeyhint="next" placeholder="Ej. 45678912">
                 <span class="field-error" id="err-reg-dni" role="alert"></span>
               </div>
             </div>
@@ -361,31 +292,14 @@
             </div>
             <div class="field">
               <label for="reg-email">Tu correo (Gmail u otro)</label>
-              <input
-                type="email"
-                id="reg-email"
-                required
-                autocomplete="email"
-                inputmode="email"
-                enterkeyhint="next"
-                placeholder="tu@correo.com"
-              >
+              <input type="email" id="reg-email" required autocomplete="email" inputmode="email" enterkeyhint="next" placeholder="tu@correo.com">
               <span class="field-error" id="err-reg-email" role="alert"></span>
             </div>
 
             <div class="field">
               <label for="reg-password">Crea una contraseña fácil de recordar</label>
               <div class="password-wrap">
-                <input
-                  type="password"
-                  id="reg-password"
-                  required
-                  minlength="6"
-                  maxlength="128"
-                  autocomplete="new-password"
-                  enterkeyhint="done"
-                  placeholder="6+ caracteres"
-                >
+                <input type="password" id="reg-password" required minlength="6" maxlength="128" autocomplete="new-password" enterkeyhint="done" placeholder="6+ caracteres">
                 <button type="button" class="toggle-pass-btn" data-toggle-pass="reg-password" aria-label="Mostrar u ocultar contraseña">Mostrar</button>
               </div>
               <span class="field-error" id="err-reg-password" role="alert"></span>
@@ -404,14 +318,13 @@
         </form>
       </div>
 
-      <!-- Vista 5: Iniciar sesión -->
       <div class="gate-card canvas-panel" id="view-login" hidden>
         <button type="button" class="back-link-btn" data-gate-view="welcome">
           <span class="ico ico-arrow-left" aria-hidden="true"></span>
           <span>Volver</span>
         </button>
 
-        <span class="canvas-step-pill">Acceso de clientas</span>
+        <span class="vip-mini-badge"><span class="ico ico-star-fill" aria-hidden="true"></span><span>Acceso Clientas VIP</span></span>
         <h2 class="gate-title">Inicia sesión en tu cuenta Touché</h2>
         <p class="gate-sub">Ingresa con el correo y contraseña que creaste para reservar tus citas más rápido.</p>
 
@@ -419,28 +332,13 @@
           <div class="form-step-panel">
             <div class="field">
               <label for="login-email">Tu correo (Gmail u otro)</label>
-              <input
-                type="email"
-                id="login-email"
-                required
-                autocomplete="email"
-                inputmode="email"
-                enterkeyhint="next"
-                placeholder="tu@correo.com"
-              >
+              <input type="email" id="login-email" required autocomplete="email" inputmode="email" enterkeyhint="next" placeholder="tu@correo.com">
             </div>
 
             <div class="field">
               <label for="login-password">Tu contraseña</label>
               <div class="password-wrap">
-                <input
-                  type="password"
-                  id="login-password"
-                  required
-                  autocomplete="current-password"
-                  enterkeyhint="done"
-                  placeholder="Tu contraseña"
-                >
+                <input type="password" id="login-password" required autocomplete="current-password" enterkeyhint="done" placeholder="Tu contraseña">
                 <button type="button" class="toggle-pass-btn" data-toggle-pass="login-password" aria-label="Mostrar u ocultar contraseña">Mostrar</button>
               </div>
             </div>
@@ -464,9 +362,8 @@
       </div>
     </section>
 
-    <!-- ==================== PANEL PRINCIPAL: CATÁLOGO → DATOS → CITA (DÍA Y HORA) → CUENTA / CONFIRMACIÓN ==================== -->
+    <!-- ==================== PANEL PRINCIPAL: CATÁLOGO → DATOS → DÍA Y HORA → CUENTA / WHATSAPP ==================== -->
     <div class="calendly-card canvas-workspace" id="booking-workspace">
-      <!-- Panel izquierdo limpio con resumen vivo -->
       <aside class="summary-rail" aria-label="Resumen de tu cita">
         <div class="rail-sticky">
           <div class="rail-studio">
@@ -523,7 +420,7 @@
               <a class="rail-support-link" href="https://wa.me/51986732957?text=Hola%20Touch%C3%A9%20Hair%20Studio%2C%20quisiera%20consultar%20por%20una%20cita" target="_blank" rel="noopener noreferrer">Salón y citas: 986 732 957</a>
             </li>
             <li>
-              <span class="ico ico-sparkle" aria-hidden="true"></span>
+              <span class="ico ico-star-fill rail-gold-ico" aria-hidden="true"></span>
               <a class="rail-vip-link" href="https://chat.whatsapp.com/FOmwXgSPb5u4YLbK5ZiXai?s=sh&p=a&iam=2" target="_blank" rel="noopener noreferrer">Club Clientas VIP Touché</a>
             </li>
             <li>
@@ -534,7 +431,6 @@
         </div>
       </aside>
 
-      <!-- Columna derecha: 1 paso enfocado a la vez -->
       <div class="flow-column">
         <div class="client-bar" id="client-bar" hidden>
           <div class="client-bar-copy">
@@ -549,7 +445,17 @@
           <div class="upcoming-list" id="upcoming-list"></div>
         </div>
 
-        <!-- Barra visual paso a paso (4 pasos claros) -->
+        <!-- Progreso Paso 1 de 4 DENTRO del panel (no en la barra horizontal) -->
+        <div class="panel-progress-head" id="panel-progress-head">
+          <div class="panel-progress-meta">
+            <span class="step-pill" id="step-indicator" aria-live="polite">Paso 1 de 4 · Servicios</span>
+            <span class="panel-progress-hint" id="step-auto-hint">Avance guiado automático</span>
+          </div>
+          <div class="progress-track is-panel" role="progressbar" aria-label="Avance de tu reserva" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" id="progress-track">
+            <div class="progress-fill is-step-1" id="progress-fill"></div>
+          </div>
+        </div>
+
         <nav class="canvas-stepper is-4-steps" id="canvas-stepper" aria-label="Pasos para tu reserva">
           <button type="button" class="stepper-node is-current" data-jump-step="1" id="stepper-1"><span class="stepper-num">1</span><span class="stepper-txt">Servicios</span></button>
           <button type="button" class="stepper-node" data-jump-step="2" id="stepper-2" disabled><span class="stepper-num">2</span><span class="stepper-txt">Tus datos</span></button>
@@ -557,7 +463,6 @@
           <button type="button" class="stepper-node" data-jump-step="4" id="stepper-4" disabled><span class="stepper-num">4</span><span class="stepper-txt">Confirmar</span></button>
         </nav>
 
-        <!-- Resumen compacto de elecciones previas -->
         <div class="canvas-picks-strip" id="canvas-picks-strip" hidden></div>
 
         <!-- ========== PASO 1: CATÁLOGO DE SERVICIOS (SIN PRECIOS) ========== -->
@@ -565,14 +470,14 @@
           <div class="step-title-row">
             <span class="step-badge" id="badge-step-1">1</span>
             <div>
-              <span class="step-kicker">Paso 1 de 4 · Catálogo de servicios</span>
+              <span class="step-kicker">Catálogo de servicios</span>
               <h1 class="step-main-heading" id="h-step-1">¿Qué servicio deseas hacerte?</h1>
             </div>
           </div>
 
           <div class="quick-account-strip" id="quick-account-strip">
-            <span>¿Ya tienes cuenta en Touché?</span>
-            <button type="button" class="text-btn" id="inline-login-trigger">Iniciar sesión</button>
+            <span class="quick-vip-copy"><span class="ico ico-star-fill" aria-hidden="true"></span><span>¿Ya eres Clienta VIP con cuenta?</span></span>
+            <button type="button" class="text-btn" id="inline-login-trigger">Acceder rápido</button>
           </div>
 
           <div id="service-picker">
@@ -605,7 +510,7 @@
               </button>
             </div>
 
-            <p class="helper-prompt" id="category-prompt">Toca una categoría para explorar nuestro catálogo:</p>
+            <p class="helper-prompt" id="category-prompt">Toca una categoría para ver los servicios disponibles:</p>
             <div class="category-grid" id="category-grid" role="group" aria-label="Categorías de servicios">
               <div class="skeleton-row"></div>
               <div class="skeleton-row"></div>
@@ -614,14 +519,14 @@
             <div class="service-options-wrap" id="service-options-wrap" hidden>
               <div class="options-head">
                 <h3 id="service-options-title">Servicios disponibles</h3>
-                <button type="button" class="change-btn" id="close-category-btn">← Ver categorías</button>
+                <button type="button" class="change-btn" id="close-category-btn">Ver categorías</button>
               </div>
               <div class="options-list" id="services-list" aria-live="polite"></div>
             </div>
           </div>
         </section>
 
-        <!-- ========== PASO 2: TUS DATOS ========== -->
+        <!-- ========== PASO 2: TUS DATOS (CON AVANCE AUTOMÁTICO Y GUÍA DE FALTANTES) ========== -->
         <section class="step-section canvas-step-pane" id="sec-client-data" aria-labelledby="h-step-2" hidden>
           <button type="button" class="back-link-btn" id="back-to-service-btn">
             <span class="ico ico-arrow-left" aria-hidden="true"></span>
@@ -631,15 +536,20 @@
           <div class="step-title-row">
             <span class="step-badge" id="badge-step-2">2</span>
             <div>
-              <span class="step-kicker">Paso 2 de 4 · Tus datos</span>
+              <span class="step-kicker">Tus datos de contacto</span>
               <h2 id="h-step-2">¿A nombre de quién reservamos tu cita?</h2>
             </div>
+          </div>
+
+          <div class="live-guidance-bar" id="step2-guidance-bar" role="status" aria-live="polite">
+            <span class="ico ico-info" id="step2-guidance-ico" aria-hidden="true"></span>
+            <span id="step2-guidance-text">Completa tu nombre, celular y DNI (8 números); al terminar pasarás automáticamente a elegir tu día y hora.</span>
           </div>
 
           <div id="signed-in-data-card" class="account-badge-card" hidden>
             <span class="chosen-check" aria-hidden="true"><span class="ico ico-check"></span></span>
             <div class="chosen-box-copy">
-              <span class="chosen-meta">Datos cargados desde tu cuenta Touché</span>
+              <span class="chosen-meta">Datos cargados desde tu cuenta Clienta VIP</span>
               <strong class="chosen-name" id="step2-account-name"></strong>
               <span class="chosen-meta" id="step2-account-meta"></span>
             </div>
@@ -649,48 +559,20 @@
             <div id="guest-fields-wrap" class="form-step-panel">
               <div class="field">
                 <label for="guest-name">Tu nombre y apellido *</label>
-                <input
-                  type="text"
-                  id="guest-name"
-                  required
-                  minlength="2"
-                  maxlength="120"
-                  autocomplete="name"
-                  autocapitalize="words"
-                  enterkeyhint="next"
-                  placeholder="Ej. María Fernanda Torres"
-                >
+                <input type="text" id="guest-name" required minlength="2" maxlength="120" autocomplete="name" autocapitalize="words" enterkeyhint="next" placeholder="Ej. María Fernanda Torres">
                 <span class="field-error" id="err-guest-name" role="alert"></span>
               </div>
 
               <div class="field-grid">
                 <div class="field">
                   <label for="guest-phone">Tu celular (WhatsApp) *</label>
-                  <input
-                    type="tel"
-                    id="guest-phone"
-                    required
-                    inputmode="tel"
-                    autocomplete="tel"
-                    enterkeyhint="next"
-                    placeholder="Ej. 987 654 321"
-                  >
+                  <input type="tel" id="guest-phone" required inputmode="tel" autocomplete="tel" enterkeyhint="next" placeholder="Ej. 987 654 321">
                   <span class="field-error" id="err-guest-phone" role="alert"></span>
                 </div>
 
                 <div class="field">
                   <label for="guest-dni">Tu DNI (8 números) *</label>
-                  <input
-                    type="text"
-                    id="guest-dni"
-                    required
-                    inputmode="numeric"
-                    pattern="[0-9]{8}"
-                    maxlength="8"
-                    autocomplete="off"
-                    enterkeyhint="next"
-                    placeholder="Ej. 45678912"
-                  >
+                  <input type="text" id="guest-dni" required inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="off" enterkeyhint="done" placeholder="Ej. 45678912">
                   <span class="field-error" id="err-guest-dni" role="alert"></span>
                 </div>
               </div>
@@ -701,18 +583,19 @@
               </div>
 
               <p class="inline-account-hint">
-                ¿Ya tienes cuenta en Touché?
+                ¿Ya tienes cuenta VIP en Touché?
                 <button type="button" class="text-btn" id="step2-login-link">Inicia sesión para completar rápido</button>
               </p>
             </div>
 
             <button type="submit" class="primary-btn full-btn confirm-submit-btn" id="continue-to-schedule-btn">
-              <span>Continuar a escoger día y hora →</span>
+              <span>Continuar a escoger día y hora</span>
+              <span class="ico ico-caret-right" aria-hidden="true"></span>
             </button>
           </form>
         </section>
 
-        <!-- ========== PASO 3: CITA — CALENDARIO (ESCOGER DÍA Y HORA) ========== -->
+        <!-- ========== PASO 3: CITA — CALENDARIO (AVANZA AUTOMÁTICO AL TOCAR LA HORA) ========== -->
         <section class="step-section canvas-step-pane" id="sec-schedule" aria-labelledby="h-step-3" hidden>
           <button type="button" class="back-link-btn" id="back-to-data-btn">
             <span class="ico ico-arrow-left" aria-hidden="true"></span>
@@ -722,18 +605,21 @@
           <div class="step-title-row">
             <span class="step-badge" id="badge-step-3">3</span>
             <div>
-              <span class="step-kicker">Paso 3 de 4 · Tu cita</span>
+              <span class="step-kicker">Tu cita · Calendario</span>
               <h2 id="h-step-3">Escoge el día y la hora de tu cita</h2>
             </div>
           </div>
 
-          <!-- Especialista (Primera disponible preseleccionada para avanzar sin fricción) -->
+          <div class="live-guidance-bar" id="step3-guidance-bar" role="status" aria-live="polite">
+            <span class="ico ico-calendar-check" aria-hidden="true"></span>
+            <span id="step3-guidance-text">Toca un día disponible en el calendario y luego tu hora preferida para pasar directo a confirmar.</span>
+          </div>
+
           <div class="schedule-staff-box" id="schedule-staff-box">
             <p class="schedule-subhead">Especialista (puedes dejar «Primera disponible» o elegir una):</p>
             <div class="staff-pills-row" id="staff-pills-row" role="group" aria-label="Elegir especialista"></div>
           </div>
 
-          <!-- Calendario grande para escoger el día -->
           <div class="calendly-calendar" id="calendly-calendar">
             <div class="calendar-nav">
               <button type="button" class="cal-nav-btn" id="cal-prev-btn" aria-label="Mes anterior">
@@ -758,27 +644,9 @@
             </div>
           </div>
 
-          <!-- Horarios disponibles del día elegido -->
           <div class="schedule-time-wrap" id="schedule-time-wrap" hidden>
             <p class="selected-day-banner" id="selected-day-banner"></p>
             <div class="slots-container" id="slots-container" aria-live="polite"></div>
-          </div>
-
-          <div class="field schedule-notes-wrap" id="schedule-notes-wrap" hidden>
-            <label for="client-notes">¿Algún detalle para tu estilista? <span class="optional-label">(opcional)</span></label>
-            <textarea
-              id="client-notes"
-              name="notes"
-              rows="2"
-              maxlength="500"
-              placeholder="Ej. Tengo tintura previa, prefiero un look natural..."
-            ></textarea>
-          </div>
-
-          <div class="schedule-continue-wrap" id="schedule-continue-wrap" hidden>
-            <button type="button" class="primary-btn full-btn confirm-submit-btn" id="continue-to-account-btn">
-              <span>Continuar con mi cita →</span>
-            </button>
           </div>
         </section>
 
@@ -792,7 +660,7 @@
           <div class="step-title-row">
             <span class="step-badge" id="badge-step-4">4</span>
             <div>
-              <span class="step-kicker">Paso 4 de 4 · Último paso</span>
+              <span class="step-kicker">Último paso</span>
               <h2 id="h-step-4">Confirma tu cita</h2>
             </div>
           </div>
@@ -805,17 +673,27 @@
             <p class="final-review-line" id="final-review-client"></p>
           </div>
 
-          <!-- Bloque para clientas SIN sesión: DOS BOTONES GRANDES LADO A LADO (CREAR CUENTA | AHORA NO) -->
+          <div class="field final-notes-field">
+            <label for="client-notes">¿Algún detalle para tu estilista? <span class="optional-label">(opcional)</span></label>
+            <textarea
+              id="client-notes"
+              name="notes"
+              rows="2"
+              maxlength="500"
+              placeholder="Ej. Tengo tintura previa, prefiero un look natural..."
+            ></textarea>
+          </div>
+
           <div id="account-decision-box" class="account-decision-box">
             <div class="account-decision-head">
-              <span class="vip-mini-badge">✨ Club Clientas Touché VIP</span>
-              <h3>¿Deseas crear tu cuenta ahora?</h3>
-              <p>Guarda tus datos para reservar en 1 toque y acceder a descuentos VIP, beneficios de fidelización y sorteos.</p>
+              <span class="vip-mini-badge"><span class="ico ico-crown" aria-hidden="true"></span><span>Club Clientas Touché VIP</span></span>
+              <h3>¿Deseas crear tu cuenta VIP ahora?</h3>
+              <p>Guarda tus datos para reservar en un toque y acceder a descuentos VIP, beneficios de fidelización y sorteos.</p>
             </div>
 
             <div class="account-dual-actions" id="account-dual-actions">
               <button type="button" class="primary-btn dual-big-btn is-create" id="btn-choose-create-account">
-                <span class="dual-btn-main">✨ CREAR CUENTA</span>
+                <span class="dual-btn-main"><span class="ico ico-star-fill" aria-hidden="true"></span><span>CREAR CUENTA</span></span>
                 <span class="dual-btn-sub">Guardar mis datos y beneficios</span>
               </button>
               <button type="button" class="secondary-btn dual-big-btn is-skip" id="btn-skip-account-book">
@@ -824,37 +702,25 @@
               </button>
             </div>
 
-            <!-- Formulario corto solo si pulsa CREAR CUENTA -->
             <form class="booking-form create-account-inline" id="inline-create-account-form" novalidate hidden>
+              <div class="live-guidance-bar" id="inline-acc-guidance-bar" role="status" aria-live="polite">
+                <span class="ico ico-info" aria-hidden="true"></span>
+                <span id="inline-acc-guidance-text">Completa tu correo y una contraseña de 6 o más caracteres para crear tu cuenta y confirmar tu cita.</span>
+              </div>
               <div class="form-step-panel">
                 <div class="form-step-head">
-                  <span class="form-step-num">✓</span>
+                  <span class="form-step-num"><span class="ico ico-star-fill" aria-hidden="true"></span></span>
                   <strong>Solo elige tu correo y contraseña</strong>
                 </div>
                 <div class="field">
                   <label for="inline-acc-email">Tu correo (Gmail u otro) *</label>
-                  <input
-                    type="email"
-                    id="inline-acc-email"
-                    required
-                    autocomplete="email"
-                    inputmode="email"
-                    placeholder="tu@correo.com"
-                  >
+                  <input type="email" id="inline-acc-email" required autocomplete="email" inputmode="email" placeholder="tu@correo.com">
                   <span class="field-error" id="err-inline-email" role="alert"></span>
                 </div>
                 <div class="field">
                   <label for="inline-acc-password">Crea una contraseña fácil de recordar *</label>
                   <div class="password-wrap">
-                    <input
-                      type="password"
-                      id="inline-acc-password"
-                      required
-                      minlength="6"
-                      maxlength="128"
-                      autocomplete="new-password"
-                      placeholder="6+ caracteres"
-                    >
+                    <input type="password" id="inline-acc-password" required minlength="6" maxlength="128" autocomplete="new-password" placeholder="6+ caracteres">
                     <button type="button" class="toggle-pass-btn" data-toggle-pass="inline-acc-password" aria-label="Mostrar u ocultar contraseña">Mostrar</button>
                   </div>
                   <span class="field-error" id="err-inline-password" role="alert"></span>
@@ -863,7 +729,8 @@
 
               <div class="account-inline-submit-row">
                 <button type="submit" class="primary-btn full-btn confirm-submit-btn" id="submit-create-and-book-btn">
-                  <span class="btn-label">✨ Crear cuenta y confirmar cita</span>
+                  <span class="ico ico-star-fill" aria-hidden="true"></span>
+                  <span class="btn-label">Crear cuenta y confirmar cita</span>
                   <span class="btn-spinner" aria-hidden="true" hidden></span>
                 </button>
                 <button type="button" class="secondary-btn full-btn senior-tall-btn" id="btn-cancel-inline-account">
@@ -873,19 +740,19 @@
             </form>
           </div>
 
-          <!-- Bloque para clientas CON sesión ya iniciada -->
           <div id="signed-in-confirm-box" hidden>
             <div class="account-badge-card" id="booking-account-card">
               <span class="chosen-check" aria-hidden="true"><span class="ico ico-check"></span></span>
               <div class="chosen-box-copy">
-                <span class="chosen-meta">Reservando con tu cuenta Touché</span>
+                <span class="chosen-meta">Reservando con tu cuenta Clienta VIP</span>
                 <strong class="chosen-name" id="booking-account-name"></strong>
                 <span class="chosen-meta" id="booking-account-meta"></span>
               </div>
             </div>
 
             <button type="button" class="primary-btn full-btn confirm-submit-btn" id="submit-signed-booking-btn">
-              <span class="btn-label">✓ Confirmar mi cita ahora</span>
+              <span class="ico ico-check" aria-hidden="true"></span>
+              <span class="btn-label">Confirmar mi cita ahora</span>
               <span class="btn-spinner" aria-hidden="true" hidden></span>
             </button>
           </div>
@@ -968,9 +835,8 @@
           </a>
         </div>
 
-        <!-- CTA FINAL DESTACADO: ÚNETE AL CLUB DE CLIENTAS DE TOUCHÉ -->
         <div class="vip-club-banner is-confirm">
-          <span class="vip-mini-badge">👑 Club Clientas Touché VIP</span>
+          <span class="vip-mini-badge"><span class="ico ico-crown" aria-hidden="true"></span><span>Club Clientas Touché VIP</span></span>
           <h3>Únete al Club de Clientas de Touché</h3>
           <p>Accede a beneficios de fidelización, descuentos exclusivos VIP, sorteos especiales y novedades del salón en nuestro grupo oficial de WhatsApp.</p>
           <a
@@ -1003,9 +869,8 @@
       </div>
 
       <div class="client-hub-grid">
-        <!-- Tarjeta 1: ¿Quieres enviar un mensaje? -->
         <article class="hub-card">
-          <div class="hub-card-icon" aria-hidden="true">💬</div>
+          <div class="hub-card-icon" aria-hidden="true"><span class="ico ico-chat-circle"></span></div>
           <h3>¿Quieres enviar un mensaje?</h3>
           <p>Escríbenos directo al WhatsApp del salón para consultar sobre servicios, tiempos o recomendaciones para tu cabello.</p>
           <div class="field hub-field">
@@ -1023,9 +888,8 @@
           </button>
         </article>
 
-        <!-- Tarjeta 2: ¿Quieres que te llamen para una asesoría? -->
         <article class="hub-card">
-          <div class="hub-card-icon" aria-hidden="true">📞</div>
+          <div class="hub-card-icon" aria-hidden="true"><span class="ico ico-phone"></span></div>
           <h3>¿Quieres que te llamen para una asesoría?</h3>
           <p>Déjanos tu nombre y celular. Una especialista de Touché se comunicará contigo para asesorarte.</p>
           <form id="advisory-call-form" class="hub-form" novalidate>
@@ -1046,7 +910,7 @@
               <span id="adv-error-text"></span>
             </div>
             <div class="hub-success" id="adv-success" role="status" hidden>
-              <strong>✓ ¡Solicitud enviada al salón!</strong>
+              <strong class="hub-success-title"><span class="ico ico-check-circle" aria-hidden="true"></span><span>Solicitud enviada al salón</span></strong>
               <p>Nuestro equipo ya recibió tus datos para llamarte pronto.</p>
               <a class="whatsapp-btn full-btn" id="adv-wa-followup" href="https://wa.me/51986732957" target="_blank" rel="noopener noreferrer">
                 <img class="brand-ico" src="/icons/brand-whatsapp.svg" alt="" width="20" height="20" aria-hidden="true">
@@ -1054,23 +918,23 @@
               </a>
             </div>
             <button type="submit" class="primary-btn full-btn" id="adv-submit-btn">
-              <span class="btn-label">📞 Pedir que me llamen para asesoría</span>
+              <span class="ico ico-phone" aria-hidden="true"></span>
+              <span class="btn-label">Pedir que me llamen para asesoría</span>
               <span class="btn-spinner" aria-hidden="true" hidden></span>
             </button>
           </form>
         </article>
       </div>
 
-      <!-- Tarjeta VIP ancha: CLUB CLIENTAS TOUCHÉ VIP -->
       <article class="vip-club-banner" id="sec-club-vip">
         <div class="vip-club-copy">
-          <span class="vip-mini-badge">👑 Club Clientas Touché VIP</span>
+          <span class="vip-mini-badge"><span class="ico ico-crown" aria-hidden="true"></span><span>Club Clientas Touché VIP</span></span>
           <h3>Beneficios de fidelización, descuentos VIP, sorteos y más</h3>
           <p>Forma parte de nuestra comunidad exclusiva de clientas en WhatsApp y disfruta de:</p>
           <ul class="vip-perks-list">
-            <li>💎 <strong>Descuentos exclusivos VIP</strong> y promociones especiales de temporada.</li>
-            <li>🎁 <strong>Beneficios de fidelización</strong> y engreimientos especiales en el mes de tu cumpleaños.</li>
-            <li>🎉 <strong>Sorteos exclusivos</strong>, novedades de tratamientos y consejos de cuidado capilar.</li>
+            <li><span class="ico ico-diamond vip-perk-ico" aria-hidden="true"></span><span><strong>Descuentos exclusivos VIP</strong> y promociones especiales de temporada.</span></li>
+            <li><span class="ico ico-gift vip-perk-ico" aria-hidden="true"></span><span><strong>Beneficios de fidelización</strong> y engreimientos especiales en el mes de tu cumpleaños.</span></li>
+            <li><span class="ico ico-star-fill vip-perk-ico" aria-hidden="true"></span><span><strong>Sorteos exclusivos</strong>, novedades de tratamientos y consejos de cuidado capilar.</span></li>
           </ul>
         </div>
         <div class="vip-club-actions">
@@ -1085,8 +949,8 @@
             <span>Únete al Club de Clientas de Touché</span>
           </a>
           <button type="button" class="secondary-btn full-btn" id="hub-account-btn">
-            <span class="ico ico-user-plus" aria-hidden="true"></span>
-            <span>Crear mi cuenta web / Iniciar sesión</span>
+            <span class="ico ico-star-fill" aria-hidden="true"></span>
+            <span>Acceso Clientas VIP (Crear cuenta / Ingresar)</span>
           </button>
         </div>
       </article>
@@ -1173,12 +1037,7 @@
       </div>
 
       <div class="social-grid">
-        <a
-          class="social-card"
-          href="https://www.facebook.com/ToucheSalonSpa/reels/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a class="social-card" href="https://www.facebook.com/ToucheSalonSpa/reels/" target="_blank" rel="noopener noreferrer">
           <img class="social-logo" src="/icons/brand-facebook.svg" alt="" width="40" height="40" aria-hidden="true">
           <span class="social-card-body">
             <strong class="social-name">Facebook</strong>
@@ -1187,12 +1046,7 @@
           <span class="ico ico-caret-right row-arrow" aria-hidden="true"></span>
         </a>
 
-        <a
-          class="social-card"
-          href="https://www.instagram.com/touchesalonspa?utm_source=ig_web_button_share_sheet&evlk=ZDNlZDc0MzIxNw=="
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a class="social-card" href="https://www.instagram.com/touchesalonspa?utm_source=ig_web_button_share_sheet&evlk=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer">
           <img class="social-logo" src="/icons/brand-instagram.svg" alt="" width="40" height="40" aria-hidden="true">
           <span class="social-card-body">
             <strong class="social-name">Instagram</strong>
@@ -1201,12 +1055,7 @@
           <span class="ico ico-caret-right row-arrow" aria-hidden="true"></span>
         </a>
 
-        <a
-          class="social-card"
-          href="https://www.tiktok.com/@touchesalonspa"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a class="social-card" href="https://www.tiktok.com/@touchesalonspa" target="_blank" rel="noopener noreferrer">
           <img class="social-logo" src="/icons/brand-tiktok.svg" alt="" width="40" height="40" aria-hidden="true">
           <span class="social-card-body">
             <strong class="social-name">TikTok</strong>
