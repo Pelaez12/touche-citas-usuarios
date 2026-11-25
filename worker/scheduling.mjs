@@ -4,16 +4,19 @@ export const SALON_INFO = {
   reference: 'Frente al Metro de Aramburú · Timbre 201',
   mapsUrl: 'https://maps.app.goo.gl/52v9AbJ4YCYamjrn7',
   reviewsUrl: 'https://share.google/853a4lw4yLho9O4xB',
+  vipClubUrl: 'https://chat.whatsapp.com/FOmwXgSPb5u4YLbK5ZiXai?s=sh&p=a&iam=2',
   socials: {
     facebook: 'https://www.facebook.com/ToucheSalonSpa/reels/',
     instagram: 'https://www.instagram.com/touchesalonspa?utm_source=ig_web_button_share_sheet&evlk=ZDNlZDc0MzIxNw==',
     tiktok: 'https://www.tiktok.com/@touchesalonspa'
   },
+  salonPhone: '986 732 957',
+  salonTel: '+51986732957',
+  salonWhatsappUrl: 'https://wa.me/51986732957',
   supportPhone: '992 272 521',
   supportTel: '+51992272521',
   supportWhatsappUrl: 'https://wa.me/51992272521',
-  paymentsNote: 'Aceptamos todas las tarjetas (cuotas sin intereses), Yape, Plin, efectivo y transferencia.',
-  pricePolicyNote: 'Los precios son referenciales. En servicios de color y alisados, el monto final se confirma en salón tras evaluar el largo y estado de tu cabello.'
+  paymentsNote: 'Aceptamos todas las tarjetas (cuotas sin intereses), Yape, Plin, efectivo y transferencia.'
 };
 
 export const CATEGORY_ORDER = [
@@ -29,7 +32,7 @@ export const CATEGORY_ORDER = [
 ];
 
 export const CATEGORY_LABELS = {
-  'ASESORÍA': 'Asesoría gratis',
+  'ASESORÍA': 'Asesoría capilar',
   'COLOR': 'Color y Shades',
   'CORTE': 'Corte',
   'TRATAMIENTO': 'Tratamientos',

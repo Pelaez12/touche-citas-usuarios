@@ -391,23 +391,38 @@ export async function handleClientAuth(request, db, readBody, { now = new Date()
     if (emailTaken) {
       return json({ error: 'Este correo ya tiene cuenta en Touché. Inicia sesión con tu correo y contraseña.' }, 409);
     }
-    const dniTaken = await db.prepare('SELECT id FROM clients WHERE dni = ?').bind(dni).first();
-    if (dniTaken) {
+    const dniTaken = await db.prepare(
+      `SELECT c.id, c.full_name AS fullName, c.phone, c.birthday, c.archived_at AS archivedAt, ca.id AS accountId
+       FROM clients c
+       LEFT JOIN client_accounts ca ON ca.client_id = c.id
+       WHERE c.dni = ?`
+    ).bind(dni).first();
+    if (dniTaken && (dniTaken.archivedAt || dniTaken.accountId)) {
       return json({ error: 'Este DNI ya está registrado en Touché. Intenta iniciar sesión o escríbenos al 992 272 521 para ayudarte.' }, 409);
     }
 
     const { salt, hash } = await hashPassword(password);
-    const clientId = crypto.randomUUID();
+    const linkingExisting = !!(dniTaken && !dniTaken.archivedAt && !dniTaken.accountId);
+    const clientId = linkingExisting ? dniTaken.id : crypto.randomUUID();
     const accountId = 'clacct-' + crypto.randomUUID();
     const token = bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
     const tokenHash = await hashText(token);
 
     try {
+      const clientStmt = linkingExisting
+        ? db.prepare(
+            `UPDATE clients
+             SET phone = CASE WHEN phone IS NULL OR phone = '' THEN ? ELSE phone END,
+                 birthday = CASE WHEN birthday IS NULL OR birthday = '' THEN ? ELSE birthday END,
+                 updated_at = ?
+             WHERE id = ?`
+          ).bind(phone, birthday, nowIso, clientId)
+        : db.prepare(
+            `INSERT INTO clients(id, full_name, dni, phone, birthday, notes, in_directory, identity_status, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, 1, 'confirmed', ?)`
+          ).bind(clientId, name, dni, phone, birthday, 'Registrada desde portal web de clientas', nowIso);
       await db.batch([
-        db.prepare(
-          `INSERT INTO clients(id, full_name, dni, phone, birthday, notes, in_directory, identity_status, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, 1, 'confirmed', ?)`
-        ).bind(clientId, name, dni, phone, birthday, 'Registrada desde portal web de clientas', nowIso),
+        clientStmt,
         db.prepare(
           `INSERT INTO client_accounts(id, client_id, email, password_hash, salt, active, created_at, updated_at, last_login_at)
            VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`
@@ -418,26 +433,27 @@ export async function handleClientAuth(request, db, readBody, { now = new Date()
         ).bind(tokenHash, accountId, nowEpoch + SESSION_MAX_AGE, nowEpoch),
         db.prepare(
           `INSERT INTO audit_log(id, actor, action, entity_type, entity_id, changes_json)
-           VALUES (?, 'clienta-portal', 'register-client-account', 'client', ?, ?)`
-        ).bind(crypto.randomUUID(), clientId, JSON.stringify({ accountId }))
+           VALUES (?, 'clienta-portal', ?, 'client', ?, ?)`
+        ).bind(crypto.randomUUID(), linkingExisting ? 'link-client-account-by-dni' : 'register-client-account', clientId, JSON.stringify({ accountId }))
       ]);
     } catch (err) {
       const msg = String(err?.message || '');
       if (msg.includes('client_accounts.email')) {
         return json({ error: 'Este correo ya está registrado. Inicia sesión con tu correo y contraseña.' }, 409);
       }
-      if (msg.includes('clients.dni')) {
+      if (msg.includes('clients.dni') || msg.includes('client_accounts.client_id')) {
         return json({ error: 'Este DNI ya está registrado en Touché. Escríbenos al 992 272 521.' }, 409);
       }
       throw err;
     }
 
+    const upcomingAppointments = linkingExisting ? await loadUpcomingForClient(db, clientId, todayLima) : [];
     return json(
       {
         signedIn: true,
         registered: true,
-        client: { id: clientId, name, email, phone, dni, birthday },
-        upcomingAppointments: []
+        client: { id: clientId, name: linkingExisting ? name : name, email, phone, dni, birthday },
+        upcomingAppointments
       },
       201,
       { 'Set-Cookie': sessionCookie(token) }

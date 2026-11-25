@@ -197,6 +197,21 @@ function createTestDb() {
       expires_at INTEGER NOT NULL,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE admin_alerts (
+      id TEXT PRIMARY KEY,
+      appointment_id TEXT REFERENCES appointments(id),
+      client_id TEXT REFERENCES clients(id),
+      staff_id TEXT REFERENCES staff(id),
+      kind TEXT NOT NULL CHECK(kind IN ('client_not_arrived','client_reminder_needed','staff_arrived')),
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_by_email TEXT NOT NULL,
+      created_by_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'unread' CHECK(status IN ('unread','resolved')),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      resolved_at TEXT,
+      resolved_by TEXT
+    );
 
     INSERT INTO agenda_preferences VALUES ('salon', '09:00', '19:00', '[1,2,3,4,5,6]');
 
@@ -288,6 +303,11 @@ test('GET /api/public/catalog exposes active services & eligible specialists wit
   assert.ok(!raw.includes('987111222'));
   assert.ok(!raw.includes('plan_b'));
   assert.ok(!raw.includes('restWeekday'));
+  assert.ok(!raw.includes('priceCents'), 'Catalog must never expose prices publicly');
+  assert.ok(!raw.includes('isFree'), 'Catalog must not expose price/free flags');
+  assert.equal(data.salon.salonPhone, '986 732 957');
+  assert.equal(data.salon.supportPhone, '992 272 521');
+  assert.ok(data.salon.vipClubUrl.includes('chat.whatsapp.com/FOmwXgSPb5u4YLbK5ZiXai'));
 });
 
 test('GET /api/public/availability respects Sundays, rest days, exceptions, and same-day lead time', async () => {
@@ -581,4 +601,31 @@ test('Client portal onboarding: unclaimed search returns ONLY names, claim remov
   assert.equal(reg.status, 201);
   assert.equal(reg.data.registered, true);
   assert.equal(reg.data.client.name, 'Lucía Paredes');
+});
+
+test('POST /api/public/advisory-request creates admin alert and returns 986 732 957 WhatsApp link, and off-grid times are rejected', async () => {
+  const { db, sqlite } = createTestDb();
+
+  // Off-grid time (10:15) rejected
+  const offGrid = await callApi(db, '/api/public/book', {
+    method: 'POST',
+    body: { serviceId: 'catalog-24', staffId: 'staff-milagros', date: '2026-11-26', time: '10:15', name: 'Ana Test', phone: '999888777', dni: '44556677' }
+  });
+  assert.equal(offGrid.status, 400);
+
+  // Advisory call request creates unread alert in admin_alerts
+  const adv = await callApi(db, '/api/public/advisory-request', {
+    method: 'POST',
+    body: { name: 'Valeria Cruz', phone: '988777666', topic: 'Balayage y botox' }
+  });
+  assert.equal(adv.status, 201);
+  assert.equal(adv.data.requested, true);
+  assert.equal(adv.data.salonPhone, '986 732 957');
+  assert.ok(adv.data.whatsappUrl.startsWith('https://wa.me/51986732957?text='));
+
+  const alertRow = sqlite.prepare('SELECT kind, title, message, status FROM admin_alerts').get();
+  assert.equal(alertRow.kind, 'client_reminder_needed');
+  assert.equal(alertRow.status, 'unread');
+  assert.ok(alertRow.message.includes('Valeria Cruz'));
+  assert.ok(alertRow.message.includes('988777666'));
 });

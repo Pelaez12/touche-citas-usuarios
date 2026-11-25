@@ -1,29 +1,48 @@
 const WEEKDAY_NAMES_LONG = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const WEEKDAY_NAMES_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MONTH_NAMES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-const SUPPORT_WA = 'https://wa.me/51992272521';
+
+const SALON_WA = 'https://wa.me/51986732957';
+const SALON_PHONE_DISPLAY = '986 732 957';
+const VIP_CLUB_URL = 'https://chat.whatsapp.com/FOmwXgSPb5u4YLbK5ZiXai?s=sh&p=a&iam=2';
 
 const STEP_LABELS = {
-  1: 'Paso 1 de 5 · Servicio',
-  2: 'Paso 2 de 5 · Especialista',
-  3: 'Paso 3 de 5 · Día',
-  4: 'Paso 4 de 5 · Hora',
-  5: 'Paso 5 de 5 · Confirmar',
-  6: '¡Cita reservada!'
+  1: 'Paso 1 de 4 · Servicios',
+  2: 'Paso 2 de 4 · Tus datos',
+  3: 'Paso 3 de 4 · Día y hora',
+  4: 'Paso 4 de 4 · Confirmar',
+  5: '¡Cita registrada!'
+};
+
+const CATEGORY_EMOJIS = {
+  COLOR: '🎨',
+  CORTE: '✂️',
+  TRATAMIENTO: '💆‍♀️',
+  'QUÍMICO': '✨',
+  PEINADO: '💇‍♀️',
+  'MANOS / PIES': '💅',
+  MAQUILLAJE: '💄',
+  DEPILACION: '🌿',
+  'ASESORÍA': '💬'
 };
 
 const state = {
   client: null,
   upcomingAppointments: [],
   catalog: null,
+  gateOpen: false,
   gateView: 'welcome',
   claimTarget: null,
   claimSearchTimer: null,
+  claimSearchSeq: 0,
+  calendarSeq: 0,
+  slotsSeq: 0,
   activeStep: 1,
   search: '',
   activeCategory: null,
   selectedService: null,
-  staffChosen: false,
+  guestData: { name: '', phone: '', dni: '', birthday: '' },
+  dataConfirmed: false,
   selectedStaff: null,
   monthView: null,
   monthDaysMap: new Map(),
@@ -67,7 +86,7 @@ function scrollToEl(el, { focusEl = null } = {}) {
     if (focusEl) {
       setTimeout(() => {
         try { focusEl.focus({ preventScroll: true }); } catch {}
-      }, prefersReducedMotion() ? 0 : 280);
+      }, prefersReducedMotion() ? 0 : 260);
     }
   });
 }
@@ -81,36 +100,6 @@ function formatDuration(min, max) {
   };
   if (max && max > min) return `${fmt(min)} – ${fmt(max)}`;
   return fmt(min);
-}
-
-function formatPrice(svc) {
-  if (svc.isFree) return { label: 'Gratis', cls: 'is-free', soles: 0 };
-  if (svc.priceCents == null) return { label: 'Según evaluación', cls: 'is-muted', soles: null };
-  const soles = Math.round(svc.priceCents / 100);
-  return { label: `Desde S/ ${soles}`, cls: '', soles };
-}
-
-function buildPriceNoticeCopy(svc) {
-  const price = formatPrice(svc);
-  if (svc.isFree) {
-    return {
-      isFree: true,
-      title: 'Servicio 100% gratuito',
-      text: 'Esta evaluación dura 20 minutos, no tiene ningún costo y es sin compromiso. En el salón te daremos un presupuesto exacto.'
-    };
-  }
-  if (price.soles == null) {
-    return {
-      isFree: false,
-      title: 'Aviso importante sobre el precio',
-      text: 'El precio de este servicio se define dentro del salón según el largo, la cantidad y el estado actual de tu cabello. Antes de empezar, nuestra especialista te confirmará el monto exacto.'
-    };
-  }
-  return {
-    isFree: false,
-    title: `Aviso sobre el precio (${price.label})`,
-    text: `El monto mostrado (${price.label}) es un precio base referencial. Dentro del salón el precio final puede variar de lo establecido según el largo, la cantidad y el estado actual de tu cabello. Antes de iniciar, nuestra especialista te confirmará el monto exacto.`
-  };
 }
 
 function formatTime12(hhmm) {
@@ -148,15 +137,21 @@ function addMonths(ym, delta) {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-function getInitials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return 'TH';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
 function firstNameOf(fullName) {
   return String(fullName || '').trim().split(/\s+/)[0] || 'Clienta';
+}
+
+function activePersonInfo() {
+  if (state.client) {
+    return {
+      name: state.client.name || '',
+      phone: state.client.phone || '',
+      dni: state.client.dni || '',
+      birthday: state.client.birthday || '',
+      email: state.client.email || ''
+    };
+  }
+  return { ...state.guestData, email: '' };
 }
 
 async function fetchJson(url, options = {}) {
@@ -177,20 +172,52 @@ async function fetchJson(url, options = {}) {
 function showWelcomeToast(message) {
   $('welcome-toast-text').textContent = message;
   $('welcome-toast').hidden = false;
-  setTimeout(() => {
+  clearTimeout(window.__welcomeToastTimer);
+  window.__welcomeToastTimer = setTimeout(() => {
     $('welcome-toast').hidden = true;
   }, 6000);
 }
 
-/* ==================== VISTAS DEL PORTAL DE ACCESO (GATE) ==================== */
-function showGateView(viewName, { prefillName = '', fromNotFound = false } = {}) {
+function setFieldError(inputId, errId, msg) {
+  const inp = $(inputId);
+  const err = $(errId);
+  if (err) err.textContent = msg || '';
+  if (inp) {
+    if (msg) inp.setAttribute('aria-invalid', 'true');
+    else inp.removeAttribute('aria-invalid');
+  }
+}
+
+function setFormBusy(btnId, busy, idleLabel, busyLabel) {
+  const btn = $(btnId);
+  if (!btn) return;
+  btn.disabled = busy;
+  const lbl = btn.querySelector('.btn-label');
+  const sp = btn.querySelector('.btn-spinner');
+  if (lbl) lbl.textContent = busy ? busyLabel : idleLabel;
+  if (sp) sp.hidden = !busy;
+}
+
+function showBoxError(boxId, textId, msg) {
+  const el = $(boxId);
+  if (!el) return;
+  $(textId).textContent = msg;
+  el.hidden = false;
+  el.classList.remove('is-shaking');
+  void el.offsetWidth;
+  el.classList.add('is-shaking');
+  scrollToEl(el);
+}
+
+/* ==================== PANEL OPCIONAL DE CUENTA (GATE) ==================== */
+function openAccountGate(viewName = 'welcome', { prefillName = '', fromNotFound = false } = {}) {
+  state.gateOpen = true;
   state.gateView = viewName;
   $('gate-shell').hidden = false;
   $('booking-workspace').hidden = true;
   $('sec-confirmation').hidden = true;
   $('step-indicator').hidden = true;
   $('progress-track').hidden = true;
-  $('logout-btn').hidden = true;
 
   const views = ['welcome', 'claim-search', 'claim-complete', 'register', 'login'];
   for (const v of views) {
@@ -198,34 +225,52 @@ function showGateView(viewName, { prefillName = '', fromNotFound = false } = {})
   }
 
   if (viewName === 'claim-search') {
-    const inp = $('claim-name-search');
-    setTimeout(() => inp.focus(), 80);
+    setTimeout(() => $('claim-name-search')?.focus(), 80);
   } else if (viewName === 'register') {
     $('register-heading').textContent = fromNotFound
       ? 'Te agregamos como clienta de Touché'
       : 'Crea tu cuenta de clienta Touché';
     $('register-sub').textContent = fromNotFound
-      ? 'Completa tus datos aquí para crear tu ficha y tu acceso, y enseguida podrás reservar tu cita.'
-      : 'Solo te pedimos estos datos una vez. Guardaremos tu acceso para que reserves tus citas en segundos.';
-    if (prefillName && !$('reg-name').value.trim()) {
-      $('reg-name').value = prefillName;
-    }
+      ? 'Completa tus datos aquí para crear tu ficha y tu acceso.'
+      : 'Solo te pedimos estos datos una vez. Así podrás reservar siempre en segundos.';
+    const srcName = prefillName || state.guestData.name;
+    if (srcName && !$('reg-name').value.trim()) $('reg-name').value = srcName;
+    if (state.guestData.phone && !$('reg-phone').value.trim()) $('reg-phone').value = state.guestData.phone;
+    if (state.guestData.dni && !$('reg-dni').value.trim()) $('reg-dni').value = state.guestData.dni;
+    if (state.guestData.birthday && !$('reg-birthday').value) $('reg-birthday').value = state.guestData.birthday;
     $('reg-error').hidden = true;
-    setTimeout(() => $('reg-name').focus(), 80);
+    setTimeout(() => $('reg-name')?.focus(), 80);
   } else if (viewName === 'login') {
     $('login-error').hidden = true;
-    setTimeout(() => $('login-email').focus(), 80);
+    setTimeout(() => $('login-email')?.focus(), 80);
   } else if (viewName === 'claim-complete') {
     $('claim-error').hidden = true;
-    setTimeout(() => $('claim-email').focus(), 80);
+    setTimeout(() => $('claim-email')?.focus(), 80);
   }
 
+  window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+}
+
+function closeAccountGate() {
+  state.gateOpen = false;
+  $('gate-shell').hidden = true;
+  if (state.bookingResult) {
+    $('sec-confirmation').hidden = false;
+    $('booking-workspace').hidden = true;
+  } else {
+    $('sec-confirmation').hidden = true;
+    $('booking-workspace').hidden = false;
+  }
+  $('step-indicator').hidden = false;
+  $('progress-track').hidden = false;
+  updateProgressAndRail();
   window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
 }
 
 async function runUnclaimedNameSearch(query) {
   const wrap = $('claim-results-wrap');
   const trimmed = query.trim();
+  const seq = ++state.claimSearchSeq;
   if (trimmed.length < 2) {
     wrap.innerHTML = '<p class="claim-hint">Escribe al menos 2 letras de tu nombre para ver coincidencias.</p>';
     return;
@@ -233,9 +278,10 @@ async function runUnclaimedNameSearch(query) {
   wrap.innerHTML = '<div class="skeleton-row"></div>';
   try {
     const data = await fetchJson(`/api/client/unclaimed-names?q=${encodeURIComponent(trimmed)}`);
+    if (seq !== state.claimSearchSeq) return;
     const results = data.results || [];
     if (!results.length) {
-      wrap.innerHTML = `<p class="claim-hint">No encontramos «${escapeHtml(trimmed)}» en la lista disponible. Usa el botón de abajo para agregarte.</p>`;
+      wrap.innerHTML = `<p class="claim-hint">No encontramos «${escapeHtml(trimmed)}» en la lista disponible. Usa el botón de abajo para crear tu cuenta.</p>`;
       return;
     }
     wrap.innerHTML = `
@@ -249,6 +295,7 @@ async function runUnclaimedNameSearch(query) {
       </div>
     `;
   } catch (err) {
+    if (seq !== state.claimSearchSeq) return;
     wrap.innerHTML = `<p class="claim-hint">${escapeHtml(err.message)}</p>`;
   }
 }
@@ -266,38 +313,38 @@ async function selectUnclaimedName(clientId) {
     $('claim-birthday-field').hidden = !reqs.needsBirthday;
     $('claim-email').value = '';
     $('claim-password').value = '';
-    $('claim-phone').value = '';
-    $('claim-dni').value = '';
-    $('claim-birthday').value = '';
-    for (const id of ['err-claim-email', 'err-claim-password', 'err-claim-phone', 'err-claim-dni']) $(id).textContent = '';
-    showGateView('claim-complete');
+    $('claim-phone').value = state.guestData.phone || '';
+    $('claim-dni').value = state.guestData.dni || '';
+    $('claim-birthday').value = state.guestData.birthday || '';
+    setFieldError('claim-email', 'err-claim-email', '');
+    setFieldError('claim-password', 'err-claim-password', '');
+    setFieldError('claim-phone', 'err-claim-phone', '');
+    setFieldError('claim-dni', 'err-claim-dni', '');
+    openAccountGate('claim-complete');
   } catch (err) {
     $('claim-results-wrap').innerHTML = `<p class="claim-hint">${escapeHtml(err.message)}</p>`;
   }
 }
 
-function setFormBusy(btnId, busy, idleLabel, busyLabel) {
-  const btn = $(btnId);
-  btn.disabled = busy;
-  btn.querySelector('.btn-label').textContent = busy ? busyLabel : idleLabel;
-  btn.querySelector('.btn-spinner').hidden = !busy;
-}
-
-function showBoxError(boxId, textId, msg) {
-  const el = $(boxId);
-  $(textId).textContent = msg;
-  el.hidden = false;
-  el.classList.remove('is-shaking');
-  void el.offsetWidth;
-  el.classList.add('is-shaking');
-  scrollToEl(el);
+function applyAuthenticatedClient(client, upcomingAppointments = [], toastMsg = '') {
+  state.client = client;
+  state.upcomingAppointments = upcomingAppointments;
+  state.claimTarget = null;
+  state.dataConfirmed = true;
+  renderClientProfileBars();
+  if (state.gateOpen) closeAccountGate();
+  else updateProgressAndRail();
+  if (toastMsg) showWelcomeToast(toastMsg);
 }
 
 async function handleClaimSubmit(event) {
   event.preventDefault();
   if (state.submitting || !state.claimTarget) return;
   $('claim-error').hidden = true;
-  for (const id of ['err-claim-email', 'err-claim-password', 'err-claim-phone', 'err-claim-dni']) $(id).textContent = '';
+  setFieldError('claim-email', 'err-claim-email', '');
+  setFieldError('claim-password', 'err-claim-password', '');
+  setFieldError('claim-phone', 'err-claim-phone', '');
+  setFieldError('claim-dni', 'err-claim-dni', '');
 
   const email = $('claim-email').value.trim();
   const password = $('claim-password').value;
@@ -306,28 +353,28 @@ async function handleClaimSubmit(event) {
   const birthday = $('claim-birthday').value.trim();
 
   if (!email.includes('@')) {
-    $('err-claim-email').textContent = 'Ingresa un correo válido (ej. tunombre@gmail.com).';
+    setFieldError('claim-email', 'err-claim-email', 'Ingresa un correo válido (ej. tu@correo.com).');
     $('claim-email').focus();
     return;
   }
   if (password.length < 6) {
-    $('err-claim-password').textContent = 'Crea una contraseña de al menos 6 caracteres.';
+    setFieldError('claim-password', 'err-claim-password', 'Crea una contraseña de al menos 6 caracteres.');
     $('claim-password').focus();
     return;
   }
   if (phone.replace(/\D/g, '').length < 7) {
-    $('err-claim-phone').textContent = 'Ingresa un celular válido (ej. 987 654 321).';
+    setFieldError('claim-phone', 'err-claim-phone', 'Ingresa un celular válido (ej. 987 654 321).');
     $('claim-phone').focus();
     return;
   }
   if (state.claimTarget.needsDni && !/^\d{8}$/.test(dni)) {
-    $('err-claim-dni').textContent = 'Ingresa tu DNI de 8 números.';
+    setFieldError('claim-dni', 'err-claim-dni', 'Ingresa tu DNI de 8 números.');
     $('claim-dni').focus();
     return;
   }
 
   state.submitting = true;
-  setFormBusy('claim-submit-btn', true, 'Activar mi cuenta y reservar cita', 'Activando tu cuenta...');
+  setFormBusy('claim-submit-btn', true, 'Activar mi cuenta y continuar', 'Activando tu cuenta...');
   try {
     const res = await fetchJson('/api/client/claim', {
       method: 'POST',
@@ -341,12 +388,12 @@ async function handleClaimSubmit(event) {
         birthday
       })
     });
-    enterBookingWorkspace(res.client, res.upcomingAppointments || [], '¡Cuenta activada y guardada! Ya puedes elegir tu cita.');
+    applyAuthenticatedClient(res.client, res.upcomingAppointments || [], '¡Cuenta activada! Tus datos quedaron listos para reservar.');
   } catch (err) {
     showBoxError('claim-error', 'claim-error-text', err.message);
   } finally {
     state.submitting = false;
-    setFormBusy('claim-submit-btn', false, 'Activar mi cuenta y reservar cita', 'Activando tu cuenta...');
+    setFormBusy('claim-submit-btn', false, 'Activar mi cuenta y continuar', 'Activando tu cuenta...');
   }
 }
 
@@ -354,7 +401,11 @@ async function handleRegisterSubmit(event) {
   event.preventDefault();
   if (state.submitting) return;
   $('reg-error').hidden = true;
-  for (const id of ['err-reg-name', 'err-reg-email', 'err-reg-password', 'err-reg-phone', 'err-reg-dni']) $(id).textContent = '';
+  setFieldError('reg-name', 'err-reg-name', '');
+  setFieldError('reg-email', 'err-reg-email', '');
+  setFieldError('reg-password', 'err-reg-password', '');
+  setFieldError('reg-phone', 'err-reg-phone', '');
+  setFieldError('reg-dni', 'err-reg-dni', '');
 
   const name = $('reg-name').value.trim().replace(/\s+/g, ' ');
   const email = $('reg-email').value.trim();
@@ -364,45 +415,45 @@ async function handleRegisterSubmit(event) {
   const birthday = $('reg-birthday').value.trim();
 
   if (name.length < 2) {
-    $('err-reg-name').textContent = 'Escribe tu nombre y apellido.';
+    setFieldError('reg-name', 'err-reg-name', 'Escribe tu nombre y apellido.');
     $('reg-name').focus();
     return;
   }
-  if (!email.includes('@')) {
-    $('err-reg-email').textContent = 'Ingresa un correo válido (ej. tunombre@gmail.com).';
-    $('reg-email').focus();
-    return;
-  }
-  if (password.length < 6) {
-    $('err-reg-password').textContent = 'Crea una contraseña de al menos 6 caracteres.';
-    $('reg-password').focus();
-    return;
-  }
   if (phone.replace(/\D/g, '').length < 7) {
-    $('err-reg-phone').textContent = 'Ingresa un celular válido (ej. 987 654 321).';
+    setFieldError('reg-phone', 'err-reg-phone', 'Ingresa un celular válido (ej. 987 654 321).');
     $('reg-phone').focus();
     return;
   }
   if (!/^\d{8}$/.test(dni)) {
-    $('err-reg-dni').textContent = 'Ingresa tu DNI de 8 números.';
+    setFieldError('reg-dni', 'err-reg-dni', 'Ingresa tu DNI de 8 números.');
     $('reg-dni').focus();
+    return;
+  }
+  if (!email.includes('@')) {
+    setFieldError('reg-email', 'err-reg-email', 'Ingresa un correo válido (ej. tu@correo.com).');
+    $('reg-email').focus();
+    return;
+  }
+  if (password.length < 6) {
+    setFieldError('reg-password', 'err-reg-password', 'Crea una contraseña de al menos 6 caracteres.');
+    $('reg-password').focus();
     return;
   }
 
   state.submitting = true;
-  setFormBusy('reg-submit-btn', true, 'Crear mi cuenta y reservar cita', 'Creando tu cuenta...');
+  setFormBusy('reg-submit-btn', true, 'Crear mi cuenta y continuar', 'Creando tu cuenta...');
   try {
     const res = await fetchJson('/api/client/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password, phone, dni, birthday })
     });
-    enterBookingWorkspace(res.client, res.upcomingAppointments || [], '¡Bienvenida a Touché! Tu cuenta quedó guardada. Ahora elige tu cita.');
+    applyAuthenticatedClient(res.client, res.upcomingAppointments || [], '¡Bienvenida al Club Touché! Tu cuenta quedó guardada.');
   } catch (err) {
     showBoxError('reg-error', 'reg-error-text', err.message);
   } finally {
     state.submitting = false;
-    setFormBusy('reg-submit-btn', false, 'Crear mi cuenta y reservar cita', 'Creando tu cuenta...');
+    setFormBusy('reg-submit-btn', false, 'Crear mi cuenta y continuar', 'Creando tu cuenta...');
   }
 }
 
@@ -426,7 +477,7 @@ async function handleLoginSubmit(event) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    enterBookingWorkspace(res.client, res.upcomingAppointments || [], `¡Hola de nuevo, ${firstNameOf(res.client.name)}!`);
+    applyAuthenticatedClient(res.client, res.upcomingAppointments || [], `¡Hola de nuevo, ${firstNameOf(res.client.name)}!`);
   } catch (err) {
     showBoxError('login-error', 'login-error-text', err.message);
   } finally {
@@ -441,29 +492,53 @@ async function handleLogout() {
   } catch {}
   state.client = null;
   state.upcomingAppointments = [];
+  state.dataConfirmed = false;
+  state.guestData = { name: '', phone: '', dni: '', birthday: '' };
+  renderClientProfileBars();
   resetBookingSelection();
-  showGateView('welcome');
+  updateProgressAndRail();
+  showWelcomeToast('Sesión cerrada correctamente.');
 }
 
-/* ==================== ESPACIO DE RESERVA (CON SESIÓN) ==================== */
+/* ==================== PERFIL Y PROGRESO DEL FLUJO (4 PASOS) ==================== */
 function renderClientProfileBars() {
   const c = state.client;
-  if (!c) return;
-  const first = firstNameOf(c.name);
-  $('rail-client-greeting').textContent = `Hola, ${first}`;
-  $('rail-client-email').textContent = c.email;
-  $('client-bar-name').textContent = `Hola, ${first}`;
-  $('client-bar-email').textContent = c.email;
+  const loggedIn = !!c;
 
-  $('booking-account-name').textContent = c.name;
-  const metaParts = [c.email];
-  if (c.phone) metaParts.push(`Cel. ${c.phone}`);
-  if (c.dni) metaParts.push(`DNI ${c.dni}`);
-  $('booking-account-meta').textContent = metaParts.join(' · ');
+  $('open-login-btn').hidden = loggedIn;
+  $('logout-btn').hidden = !loggedIn;
+  $('quick-account-strip').hidden = loggedIn;
+  $('client-bar').hidden = !loggedIn;
+  $('signed-in-data-card').hidden = !loggedIn;
+  $('guest-fields-wrap').hidden = loggedIn;
+
+  if (loggedIn) {
+    const first = firstNameOf(c.name);
+    $('rail-client-greeting').textContent = `Hola, ${first}`;
+    $('rail-client-email').textContent = c.email;
+    $('client-bar-name').textContent = `Hola, ${first}`;
+    $('client-bar-email').textContent = c.email;
+
+    const metaParts = [c.email];
+    if (c.phone) metaParts.push(`Cel. ${c.phone}`);
+    if (c.dni) metaParts.push(`DNI ${c.dni}`);
+    const metaText = metaParts.join(' · ');
+    $('step2-account-name').textContent = c.name;
+    $('step2-account-meta').textContent = metaText;
+    $('booking-account-name').textContent = c.name;
+    $('booking-account-meta').textContent = metaText;
+
+    // Prefill advisory call inputs too
+    if (!$('adv-name').value) $('adv-name').value = c.name;
+    if (!$('adv-phone').value && c.phone) $('adv-phone').value = c.phone;
+  } else {
+    $('rail-client-greeting').textContent = 'Bienvenida a Touché Hair Studio';
+    $('rail-client-email').textContent = 'Reserva tu cita en 4 pasos simples';
+  }
 
   const strip = $('upcoming-strip');
   const list = $('upcoming-list');
-  if (state.upcomingAppointments.length) {
+  if (loggedIn && state.upcomingAppointments.length) {
     list.innerHTML = state.upcomingAppointments.map(a => `
       <div class="upcoming-item">
         <strong>${escapeHtml(formatDateShort(a.date))} · ${escapeHtml(formatTime12(a.startTime))}</strong> — ${escapeHtml(a.serviceName)} (${escapeHtml(a.staffName)})
@@ -475,159 +550,100 @@ function renderClientProfileBars() {
   }
 }
 
-async function enterBookingWorkspace(client, upcomingAppointments = [], toastMsg = '') {
-  state.client = client;
-  state.upcomingAppointments = upcomingAppointments;
-  state.claimTarget = null;
-  $('gate-shell').hidden = true;
-  $('sec-confirmation').hidden = true;
-  $('booking-workspace').hidden = false;
-  $('step-indicator').hidden = false;
-  $('progress-track').hidden = false;
-  $('logout-btn').hidden = false;
-
-  renderClientProfileBars();
-  resetBookingSelection();
-  if (!state.catalog) await loadCatalog();
-  updateProgressAndRail();
-  if (toastMsg) showWelcomeToast(toastMsg);
-  window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-}
-
-const CATEGORY_EMOJIS = {
-  COLOR: '🎨',
-  CORTE: '✂️',
-  TRATAMIENTO: '💆‍♀️',
-  'QUÍMICO': '✨',
-  PEINADO: '💇‍♀️',
-  'MANOS / PIES': '💅',
-  DEPILACION: '🌿',
-  'ASESORÍA': '💬'
-};
-
-function jumpToStep(targetStep) {
+function goToStep(targetStep) {
   if (targetStep === 1) {
-    reopenServicePicker();
+    state.activeStep = 1;
+    state.bookingResult = null;
   } else if (targetStep === 2 && state.selectedService) {
-    const eligible = getEligibleStaffFor(state.selectedService.id);
-    if (eligible.length <= 1) reopenServicePicker();
-    else reopenStaffPicker();
-  } else if (targetStep === 3 && state.selectedService && state.staffChosen) {
-    state.selectedDate = null;
-    state.selectedSlot = null;
-    updateProgressAndRail();
-    scrollToEl($('booking-workspace'));
-  } else if (targetStep === 4 && state.selectedService && state.staffChosen && state.selectedDate) {
-    state.selectedSlot = null;
-    updateProgressAndRail();
-    scrollToEl($('booking-workspace'));
+    state.activeStep = 2;
+  } else if (targetStep === 3 && state.selectedService && (state.dataConfirmed || state.client)) {
+    state.activeStep = 3;
+    ensureScheduleLoaded();
+  } else if (targetStep === 4 && state.selectedService && (state.dataConfirmed || state.client) && state.selectedDate && state.selectedSlot) {
+    state.activeStep = 4;
+    renderAccountChoiceStep();
   }
+  updateProgressAndRail();
+  scrollToEl($('booking-workspace'));
 }
 
 function updateProgressAndRail() {
-  let step = 1;
-  if (state.bookingResult) step = 6;
-  else if (state.selectedSlot) step = 5;
-  else if (state.selectedDate) step = 4;
-  else if (state.staffChosen) step = 3;
-  else if (state.selectedService) step = 2;
-
-  state.activeStep = step;
-  $('step-indicator').textContent = STEP_LABELS[step];
-  $('progress-track').setAttribute('aria-valuenow', String(Math.min(step, 5)));
+  const step = state.bookingResult ? 5 : state.activeStep;
+  $('step-indicator').textContent = STEP_LABELS[step] || STEP_LABELS[1];
+  $('progress-track').setAttribute('aria-valuenow', String(Math.min(step, 4)));
   $('progress-fill').className = `progress-fill is-step-${step}`;
 
-  // Show ONLY the active step pane inside the Canva-style workspace for zero clutter
-  if (!state.bookingResult) {
+  if (!state.bookingResult && !state.gateOpen) {
     $('sec-service').hidden = step !== 1;
-    $('sec-staff').hidden = step !== 2;
-    $('sec-date').hidden = step !== 3;
-    $('sec-time').hidden = step !== 4;
-    $('sec-details').hidden = step !== 5;
+    $('sec-client-data').hidden = step !== 2;
+    $('sec-schedule').hidden = step !== 3;
+    $('sec-account-choice').hidden = step !== 4;
   }
 
-  // Update visual top stepper bar
+  const person = activePersonInfo();
+  const hasData = !!(state.client || (state.dataConfirmed && person.name && person.phone && person.dni));
+  const hasSchedule = !!(state.selectedDate && state.selectedSlot);
+
   const doneFlags = {
     1: !!state.selectedService,
-    2: state.staffChosen,
-    3: !!state.selectedDate,
-    4: !!state.selectedSlot,
-    5: !!state.bookingResult
+    2: hasData,
+    3: hasSchedule,
+    4: !!state.bookingResult
   };
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 4; i++) {
     const node = $(`stepper-${i}`);
     if (!node) continue;
     const isCurrent = step === i;
     const isDone = doneFlags[i] && step > i;
     node.classList.toggle('is-current', isCurrent);
     node.classList.toggle('is-done', isDone);
-    node.disabled = i > step && !doneFlags[i - 1];
+    node.disabled = i > 1 && !doneFlags[i - 1] && i > step;
     const numEl = node.querySelector('.stepper-num');
     if (numEl) numEl.textContent = isDone ? '✓' : String(i);
   }
 
-  // Update compact picks summary strip above active pane (steps 2..5)
+  // Compact selected chips bar (Steps 2..4)
   const picksStrip = $('canvas-picks-strip');
   if (picksStrip) {
     const chips = [];
     if (state.selectedService && step > 1) {
       chips.push(`<button type="button" class="pick-chip" data-jump-step="1"><span>✓ ${escapeHtml(state.selectedService.name)}</span><small>Cambiar</small></button>`);
     }
-    if (state.staffChosen && step > 2) {
-      const sLabel = state.selectedStaff ? state.selectedStaff.displayName : 'Primera disponible';
-      chips.push(`<button type="button" class="pick-chip" data-jump-step="2"><span>✓ ${escapeHtml(sLabel)}</span><small>Cambiar</small></button>`);
+    if (hasData && step > 2) {
+      chips.push(`<button type="button" class="pick-chip" data-jump-step="2"><span>✓ ${escapeHtml(firstNameOf(person.name))}</span><small>Editar</small></button>`);
     }
-    if (state.selectedDate && step > 3) {
-      chips.push(`<button type="button" class="pick-chip" data-jump-step="3"><span>✓ ${escapeHtml(formatDateShort(state.selectedDate))}</span><small>Cambiar</small></button>`);
-    }
-    if (state.selectedSlot && step > 4) {
-      chips.push(`<button type="button" class="pick-chip" data-jump-step="4"><span>✓ ${escapeHtml(formatTime12(state.selectedSlot.time))}</span><small>Cambiar</small></button>`);
+    if (hasSchedule && step > 3) {
+      chips.push(`<button type="button" class="pick-chip" data-jump-step="3"><span>✓ ${escapeHtml(formatDateShort(state.selectedDate))} · ${escapeHtml(formatTime12(state.selectedSlot.time))}</span><small>Cambiar</small></button>`);
     }
     picksStrip.innerHTML = chips.join('');
     picksStrip.hidden = chips.length === 0;
   }
 
-  $('badge-step-1').classList.toggle('is-done', !!state.selectedService);
-  $('badge-step-2').classList.toggle('is-done', state.staffChosen);
-  $('badge-step-3').classList.toggle('is-done', !!state.selectedDate);
-  $('badge-step-4').classList.toggle('is-done', !!state.selectedSlot);
-
-  const svc = state.selectedService;
-  $('rail-item-service').classList.toggle('is-done', !!svc);
+  // Desktop left summary rail
+  $('rail-item-service').classList.toggle('is-done', !!state.selectedService);
   $('rail-item-service').classList.toggle('is-active', step === 1);
-  if (svc) {
-    const p = formatPrice(svc);
-    $('rail-val-service').textContent = `${svc.name} (${p.label})`;
-    const notice = buildPriceNoticeCopy(svc);
-    const railNotice = $('rail-price-notice');
-    railNotice.classList.toggle('is-free', notice.isFree);
-    $('rail-price-notice-text').textContent = notice.isFree
-      ? 'Evaluación sin costo ni compromiso.'
-      : `Precio referencial (${p.label}): puede variar dentro del salón según largo y estado del cabello.`;
-    railNotice.hidden = false;
-  } else {
-    $('rail-val-service').textContent = 'Por elegir';
-    $('rail-price-notice').hidden = true;
-  }
-
-  $('rail-item-staff').classList.toggle('is-done', state.staffChosen);
-  $('rail-item-staff').classList.toggle('is-active', step === 2);
-  $('rail-val-staff').textContent = state.staffChosen
-    ? (state.selectedStaff ? state.selectedStaff.displayName : 'Primera especialista disponible')
+  $('rail-val-service').textContent = state.selectedService
+    ? `${state.selectedService.name} (${formatDuration(state.selectedService.durationMinutes, state.selectedService.durationMaxMinutes)})`
     : 'Por elegir';
 
-  $('rail-item-date').classList.toggle('is-done', !!state.selectedDate);
-  $('rail-item-date').classList.toggle('is-active', step === 3);
-  $('rail-val-date').textContent = state.selectedDate ? formatDateShort(state.selectedDate) : 'Por elegir';
+  $('rail-item-data').classList.toggle('is-done', hasData);
+  $('rail-item-data').classList.toggle('is-active', step === 2);
+  $('rail-val-data').textContent = hasData ? `${person.name} · ${person.phone}` : 'Por completar';
 
-  $('rail-item-time').classList.toggle('is-done', !!state.selectedSlot);
-  $('rail-item-time').classList.toggle('is-active', step === 4 || step === 5);
-  $('rail-val-time').textContent = state.selectedSlot
-    ? `${formatTime12(state.selectedSlot.time)} – ${formatTime12(state.selectedSlot.endTime)}`
+  $('rail-item-schedule').classList.toggle('is-done', hasSchedule);
+  $('rail-item-schedule').classList.toggle('is-active', step === 3);
+  $('rail-val-schedule').textContent = hasSchedule
+    ? `${formatDateShort(state.selectedDate)} · ${formatTime12(state.selectedSlot.time)}`
     : 'Por elegir';
+
+  $('rail-item-account').classList.toggle('is-done', !!state.bookingResult);
+  $('rail-item-account').classList.toggle('is-active', step === 4);
+  $('rail-val-account').textContent = state.client
+    ? 'Cuenta activa · Confirmar'
+    : 'Crear cuenta o Ahora no';
 }
 
-/* ==================== PASO 1: SERVICIOS ==================== */
+/* ==================== PASO 1: CATÁLOGO DE SERVICIOS (SIN PRECIOS) ==================== */
 function renderCategories() {
   const grid = $('category-grid');
   const cats = (state.catalog?.categories || []).filter(c => c.code !== 'ASESORÍA');
@@ -641,7 +657,7 @@ function renderCategories() {
       <span class="cat-card-emoji" aria-hidden="true">${CATEGORY_EMOJIS[c.code] || '✨'}</span>
       <span class="cat-card-body">
         <span class="cat-card-title">${escapeHtml(c.label)}</span>
-        <span class="cat-card-count">${c.count} ${c.count === 1 ? 'opción' : 'opciones'}</span>
+        <span class="cat-card-count">${c.count} ${c.count === 1 ? 'servicio' : 'servicios'}</span>
       </span>
     </button>
   `).join('');
@@ -692,8 +708,8 @@ function renderServiceOptions({ autoScroll = false } = {}) {
       renderServiceOptions();
     });
   } else {
+    // ZERO prices shown anywhere — ONLY service name + approximate duration
     listEl.innerHTML = filtered.map(s => {
-      const p = formatPrice(s);
       const dur = formatDuration(s.durationMinutes, s.durationMaxMinutes);
       return `
         <button type="button" class="service-row" data-service-id="${escapeHtml(s.id)}">
@@ -702,7 +718,7 @@ function renderServiceOptions({ autoScroll = false } = {}) {
             <span class="service-row-meta">Duración aprox.: ${escapeHtml(dur)}</span>
           </span>
           <span class="service-row-right">
-            <span class="service-price ${p.cls}">${escapeHtml(p.label)}</span>
+            <span class="service-pick-tag">Elegir</span>
             <span class="ico ico-caret-right row-arrow" aria-hidden="true"></span>
           </span>
         </button>
@@ -731,138 +747,121 @@ function selectService(serviceId) {
   if (!svc) return;
 
   state.selectedService = svc;
-  state.staffChosen = false;
   state.selectedStaff = null;
   state.selectedDate = null;
   state.selectedSlot = null;
+  state.monthView = null;
   state.daySlotsCache.clear();
   state.monthDaysMap.clear();
 
-  const price = formatPrice(svc);
-  $('chosen-service-name').textContent = svc.name;
-  $('chosen-service-meta').textContent = `${formatDuration(svc.durationMinutes, svc.durationMaxMinutes)} · ${price.label}`;
-  $('chosen-service-box').hidden = false;
-  $('service-picker').hidden = true;
-
-  const notice = buildPriceNoticeCopy(svc);
-  const alertBox = $('service-price-alert');
-  alertBox.classList.toggle('is-free', notice.isFree);
-  $('service-price-alert-title').textContent = notice.title;
-  $('service-price-alert-text').textContent = notice.text;
-  alertBox.hidden = false;
-
-  $('sec-date').hidden = true;
-  $('sec-time').hidden = true;
-  $('sec-details').hidden = true;
-
-  renderStep2Staff();
-  updateProgressAndRail();
-
+  // Auto-select sole eligible specialist if only 1 exists
   const eligible = getEligibleStaffFor(svc.id);
   if (eligible.length === 1) {
-    selectStaff(eligible[0].id);
-  } else {
-    updateProgressAndRail();
-    scrollToEl($('booking-workspace'));
+    state.selectedStaff = eligible[0];
   }
-}
 
-function reopenServicePicker() {
-  state.selectedService = null;
-  state.staffChosen = false;
-  state.selectedStaff = null;
-  state.selectedDate = null;
-  state.selectedSlot = null;
-  $('chosen-service-box').hidden = true;
-  $('service-price-alert').hidden = true;
-  $('service-picker').hidden = false;
-  $('sec-staff').hidden = true;
-  $('sec-date').hidden = true;
-  $('sec-time').hidden = true;
-  $('sec-details').hidden = true;
-  renderCategories();
-  renderServiceOptions();
+  state.activeStep = 2;
   updateProgressAndRail();
-  scrollToEl($('sec-service'));
+  scrollToEl($('booking-workspace'), { focusEl: state.client ? $('continue-to-schedule-btn') : $('guest-name') });
 }
 
-/* ==================== PASO 2: ESPECIALISTA ==================== */
+/* ==================== PASO 2: TUS DATOS ==================== */
+function handleGuestDataSubmit(event) {
+  event.preventDefault();
+  if (state.client) {
+    state.dataConfirmed = true;
+    goToStep(3);
+    return;
+  }
+
+  setFieldError('guest-name', 'err-guest-name', '');
+  setFieldError('guest-phone', 'err-guest-phone', '');
+  setFieldError('guest-dni', 'err-guest-dni', '');
+
+  const name = $('guest-name').value.trim().replace(/\s+/g, ' ');
+  const phone = $('guest-phone').value.trim();
+  const dni = $('guest-dni').value.replace(/\D/g, '').slice(0, 8);
+  const birthday = $('guest-birthday').value.trim();
+
+  if (name.length < 2) {
+    setFieldError('guest-name', 'err-guest-name', 'Escribe tu nombre y apellido.');
+    $('guest-name').focus();
+    return;
+  }
+  if (phone.replace(/\D/g, '').length < 7) {
+    setFieldError('guest-phone', 'err-guest-phone', 'Ingresa un celular válido (ej. 987 654 321).');
+    $('guest-phone').focus();
+    return;
+  }
+  if (!/^\d{8}$/.test(dni)) {
+    setFieldError('guest-dni', 'err-guest-dni', 'Ingresa tu DNI de 8 números.');
+    $('guest-dni').focus();
+    return;
+  }
+
+  state.guestData = { name, phone, dni, birthday };
+  state.dataConfirmed = true;
+  if (!$('adv-name').value) $('adv-name').value = name;
+  if (!$('adv-phone').value) $('adv-phone').value = phone;
+
+  goToStep(3);
+}
+
+/* ==================== PASO 3: CITA — ESPECIALISTA, CALENDARIO Y HORA ==================== */
 function getEligibleStaffFor(serviceId) {
   const entries = state.catalog?.serviceEligibleStaff?.[serviceId] || [];
   const ids = new Set(entries.map(e => (typeof e === 'string' ? e : e.staffId)));
   return (state.catalog?.staff || []).filter(m => ids.has(m.id));
 }
 
-function renderStep2Staff() {
+function renderStaffPills() {
+  const box = $('schedule-staff-box');
+  const row = $('staff-pills-row');
+  if (!state.selectedService || !row) return;
   const eligible = getEligibleStaffFor(state.selectedService.id);
-  $('chosen-staff-box').hidden = true;
-  $('staff-picker').hidden = false;
-  $('any-staff-btn').hidden = eligible.length <= 1;
-
-  const list = $('staff-list');
-  if (!eligible.length) {
-    list.innerHTML = '<div class="empty-state"><p>Por ahora no hay especialistas habilitadas para este servicio.</p></div>';
+  if (eligible.length <= 1) {
+    box.hidden = true;
     return;
   }
-
-  list.innerHTML = eligible.map(m => `
-    <button type="button" class="staff-row" data-staff-id="${escapeHtml(m.id)}">
-      <span class="choice-avatar" aria-hidden="true">${escapeHtml(getInitials(m.displayName))}</span>
-      <span class="choice-body">
-        <span class="choice-title">${escapeHtml(m.displayName)}</span>
-        <span class="choice-desc">${escapeHtml(m.specialtySummary)}</span>
-      </span>
-      <span class="ico ico-caret-right row-arrow" aria-hidden="true"></span>
-    </button>
-  `).join('');
+  box.hidden = false;
+  const currentId = state.selectedStaff?.id || '';
+  const pills = [
+    `<button type="button" class="staff-chip-btn${currentId === '' ? ' is-selected' : ''}" data-pick-staff="" aria-pressed="${currentId === '' ? 'true' : 'false'}">✨ Primera disponible</button>`,
+    ...eligible.map(m => `
+      <button type="button" class="staff-chip-btn${currentId === m.id ? ' is-selected' : ''}" data-pick-staff="${escapeHtml(m.id)}" aria-pressed="${currentId === m.id ? 'true' : 'false'}">${escapeHtml(m.shortName || m.displayName)}</button>
+    `)
+  ];
+  row.innerHTML = pills.join('');
 }
 
-async function selectStaff(staffId, { autoScrollTarget = null } = {}) {
-  const eligible = getEligibleStaffFor(state.selectedService.id);
-  state.staffChosen = true;
+function ensureScheduleLoaded() {
+  renderStaffPills();
+  const targetMonth = state.monthView || state.catalog?.today?.slice(0, 7);
+  if (targetMonth && !state.monthDaysMap.size) {
+    loadCalendarMonth(targetMonth);
+  }
+  $('schedule-time-wrap').hidden = !state.selectedDate;
+  $('schedule-notes-wrap').hidden = !state.selectedSlot;
+  $('schedule-continue-wrap').hidden = !state.selectedSlot;
+}
+
+async function switchScheduleStaff(staffId) {
   state.selectedStaff = staffId ? (state.catalog.staff.find(m => m.id === staffId) || null) : null;
   state.selectedDate = null;
   state.selectedSlot = null;
   state.daySlotsCache.clear();
   state.monthDaysMap.clear();
-
-  $('sec-staff').hidden = false;
-  $('staff-picker').hidden = true;
-  $('chosen-staff-box').hidden = false;
-  $('chosen-staff-name').textContent = state.selectedStaff
-    ? state.selectedStaff.displayName
-    : 'Primera especialista disponible';
-  $('chosen-staff-meta').textContent = state.selectedStaff
-    ? state.selectedStaff.specialtySummary
-    : 'Te mostraremos todos los horarios libres del equipo';
-  $('change-staff-btn').hidden = eligible.length <= 1;
-
-  $('sec-time').hidden = true;
-  $('sec-details').hidden = true;
-  $('sec-date').hidden = false;
+  $('schedule-time-wrap').hidden = true;
+  $('schedule-notes-wrap').hidden = true;
+  $('schedule-continue-wrap').hidden = true;
+  renderStaffPills();
   updateProgressAndRail();
-
   const targetMonth = state.catalog.today.slice(0, 7);
   await loadCalendarMonth(targetMonth);
-  scrollToEl(autoScrollTarget || $('booking-workspace'));
 }
 
-function reopenStaffPicker() {
-  state.staffChosen = false;
-  state.selectedStaff = null;
-  state.selectedDate = null;
-  state.selectedSlot = null;
-  $('chosen-staff-box').hidden = true;
-  $('staff-picker').hidden = false;
-  $('sec-date').hidden = true;
-  $('sec-time').hidden = true;
-  $('sec-details').hidden = true;
-  updateProgressAndRail();
-  scrollToEl($('sec-staff'));
-}
-
-/* ==================== PASO 3: CALENDARIO ESTILO CALENDLY ==================== */
 async function loadCalendarMonth(ym) {
+  const seq = ++state.calendarSeq;
   state.monthView = ym;
   $('cal-month-title').textContent = formatMonthTitle(ym);
   const minMonth = state.catalog.today.slice(0, 7);
@@ -880,6 +879,7 @@ async function loadCalendarMonth(ym) {
     });
     if (state.selectedStaff) qs.set('staffId', state.selectedStaff.id);
     const data = await fetchJson(`/api/public/days?${qs.toString()}`);
+    if (seq !== state.calendarSeq) return;
     const days = data.days || [];
     for (const d of days) state.monthDaysMap.set(d.date, d);
 
@@ -889,6 +889,7 @@ async function loadCalendarMonth(ym) {
     }
     renderCalendarGrid(days);
   } catch (err) {
+    if (seq !== state.calendarSeq) return;
     grid.innerHTML = `
       <div class="empty-state is-span-all">
         <p>${escapeHtml(err.message)}</p>
@@ -932,8 +933,8 @@ function renderCalendarGrid(days) {
   grid.innerHTML = html;
 }
 
-/* ==================== PASO 4: HORAS DISPONIBLES ==================== */
 async function selectDate(date) {
+  const seq = ++state.slotsSeq;
   state.selectedDate = date;
   state.selectedSlot = null;
 
@@ -942,10 +943,12 @@ async function selectDate(date) {
     .sort((a, b) => a.date.localeCompare(b.date));
   if (monthDays.length) renderCalendarGrid(monthDays);
 
-  $('sec-details').hidden = true;
-  $('sec-time').hidden = false;
+  $('schedule-time-wrap').hidden = false;
+  $('schedule-notes-wrap').hidden = true;
+  $('schedule-continue-wrap').hidden = true;
+
   const label = formatDateLong(date);
-  $('selected-day-banner').textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  $('selected-day-banner').textContent = `Horarios libres · ${label.charAt(0).toUpperCase() + label.slice(1)}`;
   updateProgressAndRail();
 
   const container = $('slots-container');
@@ -953,21 +956,23 @@ async function selectDate(date) {
   let data = state.daySlotsCache.get(cacheKey);
 
   if (!data) {
-    container.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div>';
-    scrollToEl($('sec-time'));
+    container.innerHTML = '<div class="skeleton-row"></div>';
+    scrollToEl($('schedule-time-wrap'));
     try {
       const qs = new URLSearchParams({ serviceId: state.selectedService.id, date });
       if (state.selectedStaff) qs.set('staffId', state.selectedStaff.id);
       data = await fetchJson(`/api/public/availability?${qs.toString()}`);
+      if (seq !== state.slotsSeq) return;
       state.daySlotsCache.set(cacheKey, data);
     } catch (err) {
+      if (seq !== state.slotsSeq) return;
       container.innerHTML = `<div class="empty-state"><p>${escapeHtml(err.message)}</p></div>`;
       return;
     }
   }
 
   renderSlots(data);
-  scrollToEl($('booking-workspace'));
+  scrollToEl($('schedule-time-wrap'));
 }
 
 function renderSlots(data) {
@@ -979,20 +984,12 @@ function renderSlots(data) {
         <p>Ya no quedan horas libres para este día.</p>
         <div class="empty-actions">
           ${state.selectedStaff && data.anyStaffAvailableCount > 0
-            ? `<button type="button" class="primary-btn" id="switch-any-staff-btn">Ver ${data.anyStaffAvailableCount} horas con cualquier especialista</button>`
+            ? `<button type="button" class="primary-btn" id="switch-any-staff-btn">Ver ${data.anyStaffAvailableCount} horas con primera disponible</button>`
             : ''}
-          <button type="button" class="secondary-btn" id="pick-other-day-btn">Elegir otro día</button>
         </div>
       </div>
     `;
-    $('switch-any-staff-btn')?.addEventListener('click', () => {
-      state.selectedStaff = null;
-      $('chosen-staff-name').textContent = 'Primera especialista disponible';
-      $('chosen-staff-meta').textContent = 'Te mostraremos todos los horarios libres del equipo';
-      state.daySlotsCache.clear();
-      selectDate(data.date);
-    });
-    $('pick-other-day-btn')?.addEventListener('click', () => jumpToStep(3));
+    $('switch-any-staff-btn')?.addEventListener('click', () => switchScheduleStaff(''));
     return;
   }
 
@@ -1027,7 +1024,6 @@ function renderSlots(data) {
     renderGroup('Tarde', 'ico-sun', afternoon);
 }
 
-/* ==================== PASO 5: CONFIRMAR RESERVA ==================== */
 function selectTimeSlot(time, endTime) {
   state.selectedSlot = { time, endTime };
   document.querySelectorAll('.slot-btn').forEach(btn => {
@@ -1035,66 +1031,85 @@ function selectTimeSlot(time, endTime) {
     btn.classList.toggle('is-selected', active);
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
-
-  renderFinalDetails();
-  $('sec-details').hidden = false;
+  $('schedule-notes-wrap').hidden = false;
+  $('schedule-continue-wrap').hidden = false;
   updateProgressAndRail();
-  scrollToEl($('booking-workspace'));
+  scrollToEl($('schedule-continue-wrap'));
 }
 
-function renderFinalDetails() {
+/* ==================== PASO 4: CREAR CUENTA | AHORA NO Y RESERVA ==================== */
+function renderAccountChoiceStep() {
   const svc = state.selectedService;
-  const price = formatPrice(svc);
+  const person = activePersonInfo();
   const dateLabel = formatDateLong(state.selectedDate);
   const capDate = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
   const staffLabel = state.selectedStaff ? state.selectedStaff.displayName : 'Primera especialista disponible';
 
-  $('final-review-service').textContent = `Servicio: ${svc.name} (${formatDuration(svc.durationMinutes, svc.durationMaxMinutes)} · ${price.label})`;
+  // ZERO prices shown anywhere
+  $('final-review-service').textContent = `Servicio: ${svc.name} (Duración aprox.: ${formatDuration(svc.durationMinutes, svc.durationMaxMinutes)})`;
   $('final-review-when').textContent = `Día y hora: ${capDate}, ${formatTime12(state.selectedSlot.time)} – ${formatTime12(state.selectedSlot.endTime)}`;
   $('final-review-staff').textContent = `Especialista: ${staffLabel}`;
+  $('final-review-client').textContent = `Clienta: ${person.name} · Cel. ${person.phone}`;
 
-  const notice = buildPriceNoticeCopy(svc);
-  const finalAlert = $('final-price-alert');
-  finalAlert.classList.toggle('is-free', notice.isFree);
-  $('final-price-alert-title').textContent = notice.isFree ? notice.title : 'Recuerda sobre el precio referencial';
-  $('final-price-alert-text').textContent = notice.text;
-  finalAlert.hidden = false;
   $('form-error').hidden = true;
+  const loggedIn = !!state.client;
+  $('account-decision-box').hidden = loggedIn;
+  $('signed-in-confirm-box').hidden = !loggedIn;
+  $('account-dual-actions').hidden = false;
+  $('inline-create-account-form').hidden = true;
+  setFieldError('inline-acc-email', 'err-inline-email', '');
+  setFieldError('inline-acc-password', 'err-inline-password', '');
 }
 
-async function handleBookingSubmit(event) {
-  event.preventDefault();
-  if (state.submitting || !state.client) return;
+async function submitFinalBooking({ triggerBtnId = null, busyLabel = 'Confirmando tu cita...' } = {}) {
+  if (state.submitting) return;
   $('form-error').hidden = true;
 
   state.submitting = true;
-  setFormBusy('submit-booking-btn', true, 'Confirmar mi cita', 'Confirmando tu cita...');
+  const skipBtn = $('btn-skip-account-book');
+  const createBtn = $('btn-choose-create-account');
+  if (skipBtn) skipBtn.disabled = true;
+  if (createBtn) createBtn.disabled = true;
+  if (triggerBtnId) {
+    setFormBusy(triggerBtnId, true, '✓ Confirmar mi cita ahora', busyLabel);
+  }
 
   try {
+    const person = activePersonInfo();
+    const payload = {
+      serviceId: state.selectedService.id,
+      staffId: state.selectedStaff?.id || null,
+      date: state.selectedDate,
+      time: state.selectedSlot.time,
+      notes: $('client-notes').value.trim()
+    };
+    if (!state.client) {
+      payload.name = person.name;
+      payload.phone = person.phone;
+      payload.dni = person.dni;
+    }
+
     const res = await fetchJson('/api/public/book', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        serviceId: state.selectedService.id,
-        staffId: state.selectedStaff?.id || null,
-        date: state.selectedDate,
-        time: state.selectedSlot.time,
-        notes: $('client-notes').value.trim()
-      })
+      body: JSON.stringify(payload)
     });
+
     state.bookingResult = res;
-    state.upcomingAppointments = [
-      ...state.upcomingAppointments,
-      {
-        appointmentId: res.appointmentId,
-        bookingCode: res.bookingCode,
-        serviceName: res.serviceName,
-        date: res.date,
-        startTime: res.startTime,
-        endTime: res.endTime,
-        staffName: res.staffName
-      }
-    ].sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+    if (state.client) {
+      state.upcomingAppointments = [
+        ...state.upcomingAppointments,
+        {
+          appointmentId: res.appointmentId,
+          bookingCode: res.bookingCode,
+          serviceName: res.serviceName,
+          date: res.date,
+          startTime: res.startTime,
+          endTime: res.endTime,
+          staffName: res.staffName
+        }
+      ].sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+    }
 
     renderConfirmation(res);
     $('booking-workspace').hidden = true;
@@ -1108,11 +1123,62 @@ async function handleBookingSubmit(event) {
     }
   } finally {
     state.submitting = false;
-    setFormBusy('submit-booking-btn', false, 'Confirmar mi cita', 'Confirmando tu cita...');
+    if (skipBtn) skipBtn.disabled = false;
+    if (createBtn) createBtn.disabled = false;
+    if (triggerBtnId) {
+      setFormBusy(triggerBtnId, false, '✓ Confirmar mi cita ahora', busyLabel);
+    }
   }
 }
 
-/* ==================== COMPROBANTE Y CALENDARIO ==================== */
+async function handleInlineCreateAccountAndBook(event) {
+  event.preventDefault();
+  if (state.submitting) return;
+  $('form-error').hidden = true;
+  setFieldError('inline-acc-email', 'err-inline-email', '');
+  setFieldError('inline-acc-password', 'err-inline-password', '');
+
+  const email = $('inline-acc-email').value.trim();
+  const password = $('inline-acc-password').value;
+  if (!email.includes('@')) {
+    setFieldError('inline-acc-email', 'err-inline-email', 'Ingresa un correo válido (ej. tu@correo.com).');
+    $('inline-acc-email').focus();
+    return;
+  }
+  if (password.length < 6) {
+    setFieldError('inline-acc-password', 'err-inline-password', 'Crea una contraseña de al menos 6 caracteres.');
+    $('inline-acc-password').focus();
+    return;
+  }
+
+  state.submitting = true;
+  setFormBusy('submit-create-and-book-btn', true, '✨ Crear cuenta y confirmar cita', 'Creando cuenta y reservando...');
+  try {
+    const res = await fetchJson('/api/client/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: state.guestData.name,
+        phone: state.guestData.phone,
+        dni: state.guestData.dni,
+        birthday: state.guestData.birthday,
+        email,
+        password
+      })
+    });
+    state.client = res.client;
+    state.upcomingAppointments = res.upcomingAppointments || [];
+    renderClientProfileBars();
+    state.submitting = false;
+    await submitFinalBooking({ triggerBtnId: 'submit-create-and-book-btn', busyLabel: 'Confirmando tu cita...' });
+  } catch (err) {
+    state.submitting = false;
+    setFormBusy('submit-create-and-book-btn', false, '✨ Crear cuenta y confirmar cita', 'Creando cuenta y reservando...');
+    showBoxError('form-error', 'form-error-text', err.message);
+  }
+}
+
+/* ==================== PANTALLA FINAL: WHATSAPP (986 732 957), CALENDARIO Y CLUB VIP ==================== */
 function toCalendarUtcStamp(ymd, hhmm) {
   const d = new Date(`${ymd}T${hhmm}:00-05:00`);
   return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
@@ -1129,7 +1195,7 @@ function buildIcsContent(b) {
     `Servicio: ${b.serviceName}`,
     `Especialista: ${b.staffName}`,
     `Ubicación: ${b.salon.address} (${b.salon.reference})`,
-    `Soporte WhatsApp: 992 272 521`,
+    `WhatsApp del salón: ${SALON_PHONE_DISPLAY}`,
     `Mapa: ${b.salon.mapsUrl}`
   ].join('\\n');
 
@@ -1165,7 +1231,7 @@ function buildGoogleCalendarUrl(b) {
     text: `Cita Touché Hair Studio — ${b.serviceName}`,
     dates: `${startUtc}/${endUtc}`,
     location: `${b.salon.address} (${b.salon.reference})`,
-    details: `Código de reserva: ${b.bookingCode}\nServicio: ${b.serviceName}\nEspecialista: ${b.staffName}\nSoporte Touché: 992 272 521\nCómo llegar: ${b.salon.mapsUrl}`
+    details: `Código de reserva: ${b.bookingCode}\nServicio: ${b.serviceName}\nEspecialista: ${b.staffName}\nSalón y citas Touché: ${SALON_PHONE_DISPLAY}\nCómo llegar: ${b.salon.mapsUrl}`
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
@@ -1177,16 +1243,6 @@ function renderConfirmation(b) {
   const capDate = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
   $('ticket-datetime').textContent = `${capDate} · ${formatTime12(b.startTime)} – ${formatTime12(b.endTime)}`;
   $('ticket-staff').textContent = b.staffName;
-
-  if (b.isFree) {
-    $('ticket-price').textContent = 'Gratis (sin compromiso)';
-  } else if (b.priceCents != null) {
-    const soles = Math.round(b.priceCents / 100);
-    $('ticket-price').textContent = `Desde S/ ${soles} (referencial: puede variar en salón según largo y estado del cabello)`;
-  } else {
-    $('ticket-price').textContent = 'Según evaluación en salón';
-  }
-
   $('ticket-address').textContent = b.salon.address;
   $('ticket-reference').textContent = b.salon.reference;
 
@@ -1196,8 +1252,17 @@ function renderConfirmation(b) {
 
   $('gcal-link').href = buildGoogleCalendarUrl(b);
   $('maps-link').href = b.salon.mapsUrl;
-  const waText = `Hola Touché, acabo de reservar mi cita (${b.bookingCode}) para ${b.serviceName} el ${capDate} a las ${formatTime12(b.startTime)}. Tengo una consulta:`;
-  $('ticket-whatsapp-link').href = `${SUPPORT_WA}?text=${encodeURIComponent(waText)}`;
+
+  const waText = [
+    `Hola Touché Hair Studio 💕 Quiero confirmar mi cita:`,
+    `• Código: ${b.bookingCode}`,
+    `• Clienta: ${b.clientName}`,
+    `• Servicio: ${b.serviceName}`,
+    `• Día y hora: ${capDate} a las ${formatTime12(b.startTime)}`,
+    `• Especialista: ${b.staffName}`
+  ].join('\n');
+  $('ticket-whatsapp-link').href = `${SALON_WA}?text=${encodeURIComponent(waText)}`;
+  $('ticket-vip-club-link').href = b.salon?.vipClubUrl || VIP_CLUB_URL;
 }
 
 function downloadIcs() {
@@ -1216,11 +1281,12 @@ function downloadIcs() {
 }
 
 function resetBookingSelection() {
+  state.activeStep = 1;
   state.search = '';
   state.activeCategory = null;
   state.selectedService = null;
-  state.staffChosen = false;
   state.selectedStaff = null;
+  state.monthView = null;
   state.selectedDate = null;
   state.selectedSlot = null;
   state.bookingResult = null;
@@ -1230,19 +1296,63 @@ function resetBookingSelection() {
   $('service-search').value = '';
   $('service-search-clear').hidden = true;
   $('client-notes').value = '';
-
-  $('chosen-service-box').hidden = true;
-  $('service-price-alert').hidden = true;
-  $('service-picker').hidden = false;
   $('service-options-wrap').hidden = true;
-  $('sec-staff').hidden = true;
-  $('sec-date').hidden = true;
-  $('sec-time').hidden = true;
-  $('sec-details').hidden = true;
+  $('schedule-time-wrap').hidden = true;
+  $('schedule-notes-wrap').hidden = true;
+  $('schedule-continue-wrap').hidden = true;
 
   if (state.catalog) {
     renderFeaturedEval();
     renderCategories();
+  }
+}
+
+/* ==================== APARTADO CLIENTAS: MENSAJE Y ASESORÍA (986 732 957) ==================== */
+function handleQuickMessageSend() {
+  const raw = ($('quick-msg-input')?.value || '').trim();
+  const text = raw
+    ? `Hola Touché Hair Studio 💕 ${raw}`
+    : 'Hola Touché Hair Studio 💕 Quisiera hacer una consulta sobre sus servicios y horarios.';
+  window.open(`${SALON_WA}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+}
+
+async function handleAdvisorySubmit(event) {
+  event.preventDefault();
+  if (state.submitting) return;
+  $('adv-error').hidden = true;
+  $('adv-success').hidden = true;
+
+  const name = $('adv-name').value.trim().replace(/\s+/g, ' ');
+  const phone = $('adv-phone').value.trim();
+  const topic = $('adv-topic').value.trim();
+
+  if (name.length < 2) {
+    showBoxError('adv-error', 'adv-error-text', 'Escribe tu nombre para poder llamarte.');
+    $('adv-name').focus();
+    return;
+  }
+  if (phone.replace(/\D/g, '').length < 7) {
+    showBoxError('adv-error', 'adv-error-text', 'Ingresa tu número de celular (ej. 987 654 321).');
+    $('adv-phone').focus();
+    return;
+  }
+
+  state.submitting = true;
+  setFormBusy('adv-submit-btn', true, '📞 Pedir que me llamen para asesoría', 'Enviando solicitud...');
+  try {
+    const res = await fetchJson('/api/public/advisory-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, phone, topic })
+    });
+    if (res.whatsappUrl) $('adv-wa-followup').href = res.whatsappUrl;
+    $('adv-success').hidden = false;
+    $('adv-topic').value = '';
+  } catch (err) {
+    showBoxError('adv-error', 'adv-error-text', err.message);
+  } finally {
+    state.submitting = false;
+    setFormBusy('adv-submit-btn', false, '📞 Pedir que me llamen para asesoría', 'Enviando solicitud...');
   }
 }
 
@@ -1266,10 +1376,12 @@ async function bootstrap() {
   try {
     const [me] = await Promise.all([fetchJson('/api/client/me'), loadCatalog()]);
     if (me.authenticated && me.client) {
-      await enterBookingWorkspace(me.client, me.upcomingAppointments || []);
-    } else {
-      showGateView('welcome');
+      state.client = me.client;
+      state.upcomingAppointments = me.upcomingAppointments || [];
+      state.dataConfirmed = true;
     }
+    renderClientProfileBars();
+    updateProgressAndRail();
   } catch (err) {
     $('global-error-text').textContent = err.message;
     $('global-error').hidden = false;
@@ -1280,24 +1392,30 @@ function bindEvents() {
   $('global-retry-btn').addEventListener('click', () => bootstrap());
   $('brand-home-link').addEventListener('click', e => {
     e.preventDefault();
-    if (state.client) {
-      $('sec-confirmation').hidden = true;
-      $('booking-workspace').hidden = false;
-      renderClientProfileBars();
-      resetBookingSelection();
-      updateProgressAndRail();
-      window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-    } else {
-      showGateView('welcome');
-    }
+    state.gateOpen = false;
+    $('gate-shell').hidden = true;
+    $('sec-confirmation').hidden = true;
+    $('booking-workspace').hidden = false;
+    $('step-indicator').hidden = false;
+    $('progress-track').hidden = false;
+    resetBookingSelection();
+    renderClientProfileBars();
+    updateProgressAndRail();
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   });
 
-  // Gate navigation
-  $('btn-returning-salon').addEventListener('click', () => showGateView('claim-search'));
-  $('btn-first-time-salon').addEventListener('click', () => showGateView('register'));
-  $('btn-go-login').addEventListener('click', () => showGateView('login'));
+  // Optional account gate triggers
+  $('open-login-btn').addEventListener('click', () => openAccountGate('welcome'));
+  $('inline-login-trigger').addEventListener('click', () => openAccountGate('login'));
+  $('step2-login-link').addEventListener('click', () => openAccountGate('login'));
+  $('hub-account-btn').addEventListener('click', () => openAccountGate(state.client ? 'welcome' : 'register'));
+  $('close-gate-btn').addEventListener('click', () => closeAccountGate());
+
+  $('btn-returning-salon').addEventListener('click', () => openAccountGate('claim-search'));
+  $('btn-first-time-salon').addEventListener('click', () => openAccountGate('register'));
+  $('btn-go-login').addEventListener('click', () => openAccountGate('login'));
   $('btn-not-found-register').addEventListener('click', () => {
-    showGateView('register', { prefillName: $('claim-name-search').value.trim(), fromNotFound: true });
+    openAccountGate('register', { prefillName: $('claim-name-search').value.trim(), fromNotFound: true });
   });
 
   $('logout-btn').addEventListener('click', () => handleLogout());
@@ -1319,27 +1437,38 @@ function bindEvents() {
   });
 
   // Clean DNI numeric fields
-  for (const id of ['claim-dni', 'reg-dni']) {
-    $(id).addEventListener('input', e => {
+  for (const id of ['claim-dni', 'reg-dni', 'guest-dni']) {
+    $(id)?.addEventListener('input', e => {
       const clean = e.target.value.replace(/\D/g, '').slice(0, 8);
       if (e.target.value !== clean) e.target.value = clean;
     });
   }
 
-  // Gate forms
+  // Account gate forms
   $('claim-form').addEventListener('submit', handleClaimSubmit);
   $('register-form').addEventListener('submit', handleRegisterSubmit);
   $('login-form').addEventListener('submit', handleLoginSubmit);
 
-  // Booking workspace events
-  $('change-service-btn').addEventListener('click', () => reopenServicePicker());
-  $('change-staff-btn').addEventListener('click', () => reopenStaffPicker());
-  $('back-to-service-btn')?.addEventListener('click', () => jumpToStep(1));
-  $('back-to-staff-btn')?.addEventListener('click', () => jumpToStep(2));
-  $('back-to-date-btn')?.addEventListener('click', () => jumpToStep(3));
-  $('back-to-time-btn')?.addEventListener('click', () => jumpToStep(4));
-  $('any-staff-btn').addEventListener('click', () => selectStaff(null));
+  // Booking flow forms & step buttons
+  $('guest-data-form').addEventListener('submit', handleGuestDataSubmit);
+  $('back-to-service-btn').addEventListener('click', () => goToStep(1));
+  $('back-to-data-btn').addEventListener('click', () => goToStep(2));
+  $('back-to-schedule-btn').addEventListener('click', () => goToStep(3));
+  $('continue-to-account-btn').addEventListener('click', () => goToStep(4));
 
+  // Step 4: Dual big buttons (CREAR CUENTA | AHORA NO)
+  $('btn-choose-create-account').addEventListener('click', () => {
+    $('account-dual-actions').hidden = true;
+    $('inline-create-account-form').hidden = false;
+    $('form-error').hidden = true;
+    setTimeout(() => $('inline-acc-email')?.focus(), 80);
+  });
+  $('btn-skip-account-book').addEventListener('click', () => submitFinalBooking());
+  $('btn-cancel-inline-account').addEventListener('click', () => submitFinalBooking());
+  $('inline-create-account-form').addEventListener('submit', handleInlineCreateAccountAndBook);
+  $('submit-signed-booking-btn').addEventListener('click', () => submitFinalBooking({ triggerBtnId: 'submit-signed-booking-btn' }));
+
+  // Service search & category toggle
   $('close-category-btn').addEventListener('click', () => {
     state.activeCategory = null;
     state.search = '';
@@ -1365,6 +1494,7 @@ function bindEvents() {
     searchInput.focus();
   });
 
+  // Delegated clicks
   document.addEventListener('click', e => {
     const togglePass = e.target.closest('[data-toggle-pass]');
     if (togglePass) {
@@ -1379,7 +1509,7 @@ function bindEvents() {
 
     const gateBtn = e.target.closest('[data-gate-view]');
     if (gateBtn) {
-      showGateView(gateBtn.dataset.gateView);
+      openAccountGate(gateBtn.dataset.gateView);
       return;
     }
 
@@ -1406,9 +1536,9 @@ function bindEvents() {
       return;
     }
 
-    const staffBtn = e.target.closest('[data-staff-id]');
-    if (staffBtn) {
-      selectStaff(staffBtn.dataset.staffId);
+    const pickStaffBtn = e.target.closest('[data-pick-staff]');
+    if (pickStaffBtn) {
+      switchScheduleStaff(pickStaffBtn.dataset.pickStaff);
       return;
     }
 
@@ -1420,7 +1550,7 @@ function bindEvents() {
 
     const jumpBtn = e.target.closest('[data-jump-step]');
     if (jumpBtn && !jumpBtn.disabled) {
-      jumpToStep(Number(jumpBtn.dataset.jumpStep));
+      goToStep(Number(jumpBtn.dataset.jumpStep));
       return;
     }
 
@@ -1435,7 +1565,7 @@ function bindEvents() {
       const jumpEl = e.target.closest('li[data-jump-step]');
       if (jumpEl) {
         e.preventDefault();
-        jumpToStep(Number(jumpEl.dataset.jumpStep));
+        goToStep(Number(jumpEl.dataset.jumpStep));
       }
     }
   });
@@ -1447,21 +1577,24 @@ function bindEvents() {
     if (state.monthView) loadCalendarMonth(addMonths(state.monthView, 1));
   });
 
-  $('booking-form').addEventListener('submit', handleBookingSubmit);
+  // Confirmation & Client Hub actions
   $('download-ics-btn').addEventListener('click', downloadIcs);
+  $('quick-msg-send-btn').addEventListener('click', handleQuickMessageSend);
+  $('advisory-call-form').addEventListener('submit', handleAdvisorySubmit);
+
   $('nav-conocenos-link').addEventListener('click', e => {
     e.preventDefault();
     scrollToEl($('sec-conocenos'));
   });
   $('about-book-btn').addEventListener('click', () => {
-    const target = state.client ? $('booking-workspace') : $('gate-shell');
-    scrollToEl(target);
+    if (state.gateOpen) closeAccountGate();
+    scrollToEl($('booking-workspace'));
   });
   $('book-another-btn').addEventListener('click', () => {
     $('sec-confirmation').hidden = true;
     $('booking-workspace').hidden = false;
-    renderClientProfileBars();
     resetBookingSelection();
+    renderClientProfileBars();
     updateProgressAndRail();
     window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   });

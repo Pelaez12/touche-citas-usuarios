@@ -1,10 +1,10 @@
 import {
   CATEGORY_LABELS,
   CATEGORY_ORDER,
-  EVAL_PRICE_CATEGORIES,
   MAX_BOOKING_DAYS_AHEAD,
   SALON_INFO,
   SAME_DAY_LEAD_MINUTES,
+  SLOT_STEP_MINUTES,
   addDays,
   computeDaySlots,
   effectiveDuration,
@@ -12,6 +12,7 @@ import {
   fromMinutes,
   limaNowParts,
   makeBookingCode,
+  normalizePeruPhone,
   rankCandidatesForSlot,
   resolveCapability,
   sanitizePublicSpecialty,
@@ -72,9 +73,6 @@ function buildPublicService(row) {
     rawName: row.name,
     category: row.category,
     categoryLabel: CATEGORY_LABELS[row.category] || row.category,
-    priceCents: row.priceCents ?? null,
-    isFree: row.priceCents === 0 || row.id === 'touche-evaluacion-capilar',
-    requiresEvalPrice: EVAL_PRICE_CATEGORIES.has(row.category),
     featured: row.id === 'touche-evaluacion-capilar',
     durationMinutes,
     durationMaxMinutes
@@ -91,7 +89,7 @@ export async function handlePublicApi(request, db, readBody, { now = new Date(),
   if (path === '/api/public/catalog' && method === 'GET') {
     const [prefs, svcRes, staffRes, catRes, ovrRes] = await Promise.all([
       loadPrefs(db),
-      db.prepare(`SELECT id, name, category, price_cents AS priceCents, duration_minutes AS durationMinutes, duration_max_minutes AS durationMaxMinutes
+      db.prepare(`SELECT id, name, category, duration_minutes AS durationMinutes, duration_max_minutes AS durationMaxMinutes
         FROM services WHERE active = 1 ORDER BY category, name COLLATE NOCASE`).all(),
       db.prepare(`SELECT id, display_name AS displayName, short_name AS shortName, role, seniority_tier AS seniorityTier,
         rest_weekday AS restWeekday, specialty_summary AS specialtySummary
@@ -149,7 +147,7 @@ export async function handlePublicApi(request, db, readBody, { now = new Date(),
     const staffId = String(url.searchParams.get('staffId') || '').trim() || null;
     if (!serviceId) return json({ error: 'Selecciona un servicio para ver los días disponibles.' }, 400);
 
-    const serviceRow = await db.prepare(`SELECT id, name, category, price_cents AS priceCents, duration_minutes AS durationMinutes, duration_max_minutes AS durationMaxMinutes
+    const serviceRow = await db.prepare(`SELECT id, name, category, duration_minutes AS durationMinutes, duration_max_minutes AS durationMaxMinutes
       FROM services WHERE id = ? AND active = 1`).bind(serviceId).first();
     if (!serviceRow) return json({ error: 'Servicio no disponible.' }, 404);
     const service = buildPublicService(serviceRow);
@@ -217,7 +215,7 @@ export async function handlePublicApi(request, db, readBody, { now = new Date(),
     if (!serviceId || !validDay(date)) {
       return json({ error: 'Indica un servicio y una fecha válidos.' }, 400);
     }
-    const serviceRow = await db.prepare(`SELECT id, name, category, price_cents AS priceCents, duration_minutes AS durationMinutes, duration_max_minutes AS durationMaxMinutes
+    const serviceRow = await db.prepare(`SELECT id, name, category, duration_minutes AS durationMinutes, duration_max_minutes AS durationMaxMinutes
       FROM services WHERE id = ? AND active = 1`).bind(serviceId).first();
     if (!serviceRow) return json({ error: 'Servicio no disponible.' }, 404);
     const service = buildPublicService(serviceRow);
@@ -315,7 +313,7 @@ export async function handlePublicApi(request, db, readBody, { now = new Date(),
       return json({ error: e.message }, 400);
     }
 
-    const serviceRow = await db.prepare(`SELECT id, name, category, price_cents AS priceCents, duration_minutes AS durationMinutes, duration_max_minutes AS durationMaxMinutes
+    const serviceRow = await db.prepare(`SELECT id, name, category, duration_minutes AS durationMinutes, duration_max_minutes AS durationMaxMinutes
       FROM services WHERE id = ? AND active = 1`).bind(payload.serviceId).first();
     if (!serviceRow) return json({ error: 'El servicio elegido ya no está disponible.' }, 404);
     const service = buildPublicService(serviceRow);
@@ -332,6 +330,10 @@ export async function handlePublicApi(request, db, readBody, { now = new Date(),
     }
 
     const startMin = toMinutes(payload.time);
+    const openMin = toMinutes(prefs.openTime);
+    if ((startMin - openMin) % SLOT_STEP_MINUTES !== 0) {
+      return json({ error: 'Selecciona un bloque horario válido de la agenda.' }, 400);
+    }
     const endMin = startMin + service.durationMinutes;
     if (endMin >= 1440) return json({ error: 'La cita debe terminar el mismo día.' }, 400);
     const endTime = fromMinutes(endMin);
@@ -405,7 +407,7 @@ export async function handlePublicApi(request, db, readBody, { now = new Date(),
       let existingClient = await db.prepare('SELECT id, phone, archived_at AS archivedAt FROM clients WHERE dni = ?').bind(payload.dni).first();
       if (existingClient?.archivedAt) {
         return json(
-          { error: 'No pudimos completar tu reserva en línea con este documento. Por favor comunícate con recepción al 992 272 521.' },
+          { error: 'No pudimos completar tu reserva en línea con este documento. Por favor comunícate con recepción al 986 732 957.' },
           409
         );
       }
@@ -533,12 +535,76 @@ export async function handlePublicApi(request, db, readBody, { now = new Date(),
       serviceId: service.id,
       serviceName: service.name,
       serviceCategory: service.category,
-      priceCents: service.priceCents,
-      isFree: service.isFree,
-      requiresEvalPrice: service.requiresEvalPrice,
       staffName: publicStaffName,
       assignmentMode,
       salon: { ...SALON_INFO, ...prefs }
+    }, 201);
+  }
+
+  if (path === '/api/public/advisory-request' && method === 'POST') {
+    if (sameOriginCheck && !sameOriginCheck(request)) {
+      return json({ error: 'Origen no permitido.' }, 403);
+    }
+    const nowEpoch = Math.floor(now.getTime() / 1000);
+    const ip = request.headers.get('cf-connecting-ip') || 'local';
+    const principal = await sha256Hex('pub-advisory|' + ip);
+    const rateRow = await db.prepare(
+      `INSERT INTO web_login_limits(principal_hash, window_start, attempts) VALUES (?, ?, 1)
+       ON CONFLICT(principal_hash) DO UPDATE SET
+         attempts = CASE WHEN window_start < ? THEN 1 ELSE attempts + 1 END,
+         window_start = CASE WHEN window_start < ? THEN excluded.window_start ELSE window_start END
+       RETURNING attempts`
+    ).bind(principal, nowEpoch, nowEpoch - 900, nowEpoch - 900).first();
+    if ((rateRow?.attempts || 0) > 8) {
+      return json(
+        { error: 'Ya recibimos varias solicitudes seguidas. Escríbenos directo al 986 732 957.' },
+        429,
+        { 'Retry-After': '900' }
+      );
+    }
+
+    let raw;
+    try {
+      raw = await readBody(request);
+    } catch (e) {
+      return json({ error: e.message }, 400);
+    }
+    const name = String(raw?.name || '').trim().replace(/\s+/g, ' ');
+    if (name.length < 2 || name.length > 120) {
+      return json({ error: 'Escribe tu nombre para poder llamarte.' }, 400);
+    }
+    let phone;
+    try {
+      phone = normalizePeruPhone(raw?.phone);
+    } catch (e) {
+      return json({ error: e.message }, 400);
+    }
+    const topic = String(raw?.topic || '').trim().replace(/\s+/g, ' ').slice(0, 300);
+
+    const nowIso = now.toISOString();
+    const alertId = 'alert-' + crypto.randomUUID();
+    const alertTitle = '📞 Solicitud de llamada para asesoría';
+    const alertMsg = `${name} · Cel. ${phone}${topic ? ` · Consulta: ${topic}` : ' · Quiere que la llamen para asesoría capilar'}`;
+
+    try {
+      await db.batch([
+        db.prepare(
+          `INSERT INTO admin_alerts(id, appointment_id, client_id, staff_id, kind, title, message, created_by_email, created_by_name, status, created_at)
+           VALUES (?, NULL, NULL, NULL, 'client_reminder_needed', ?, ?, 'portal-clientas@touche.pe', 'Portal de Clientas', 'unread', ?)`
+        ).bind(alertId, alertTitle, alertMsg, nowIso),
+        db.prepare('INSERT INTO audit_log(id, actor, action, entity_type, entity_id, changes_json) VALUES (?, ?, ?, ?, ?, ?)')
+          .bind(crypto.randomUUID(), 'portal-clientas', 'public-advisory-request', 'advisory', alertId, JSON.stringify({ name, phone, topic }))
+      ]);
+    } catch {
+      await db.prepare('INSERT INTO audit_log(id, actor, action, entity_type, entity_id, changes_json) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(crypto.randomUUID(), 'portal-clientas', 'public-advisory-request', 'advisory', alertId, JSON.stringify({ name, phone, topic })).run();
+    }
+
+    const waText = `Hola Touché Hair Studio 💕 Soy ${name} (${phone}). Solicité una llamada de asesoría desde la web${topic ? ` sobre: ${topic}` : ''}.`;
+    return json({
+      requested: true,
+      salonPhone: SALON_INFO.salonPhone,
+      whatsappUrl: `${SALON_INFO.salonWhatsappUrl}?text=${encodeURIComponent(waText)}`
     }, 201);
   }
 
